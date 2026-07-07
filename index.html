@@ -28,12 +28,14 @@
       await set(ref(db, path), JSON.parse(val));
     },
     async listPrefix() {
-      // แก้ไขตรงนี้: ลองดึงจาก 'recipe' โดยใช้ ref(db, 'recipe')
-      const snapshot = await get(ref(db, 'recipe'));
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        // ส่งคืนค่าเป็น array ของ keys
-        return Object.keys(data).map(k => 'recipe:' + k);
+      // เปลี่ยนมาดึงข้อมูลทั้งหมดจาก Root ของฐานข้อมูลเลยค่ะ
+      const snapshot = await get(ref(db));
+      if (!snapshot.exists()) return [];
+      
+      const allData = snapshot.val();
+      // ถ้าโครงสร้างข้างในมี 'recipe' ให้ดึงเฉพาะส่วนนั้น
+      if (allData.recipe) {
+        return Object.keys(allData.recipe).map(k => 'recipe:' + k);
       }
       return [];
     },
