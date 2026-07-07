@@ -6,7 +6,7 @@
 <title>Recipe Scaler — Baking Calculator</title>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-  import { getDatabase, ref, set, get, remove, child } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+  import { getDatabase, ref, set, get, remove } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAVQj3_3fC2KYUAE4SkxxgGF1is0JMH3QI",
@@ -21,30 +21,31 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
+  // เปลี่ยนมาใช้ window.safeStorage แบบนี้เพื่อให้แน่ใจว่ามันมองเห็น db
   window.safeStorage = {
-  async set(key, val) {
-    const path = key.replace(/:/g, '/');
-    try {
+    async set(key, val) {
+      const path = key.replace(/:/g, '/');
       await set(ref(db, path), JSON.parse(val));
-      console.log("บันทึกสำเร็จ!");
-    } catch (error) {
-      console.error("บันทึกล้มเหลว:", error);
+    },
+    async listPrefix() {
+      const snapshot = await get(ref(db, 'recipe'));
+      // แก้ไขตรงนี้ให้ดึงรายการจาก snapshot.val() ที่ถูกต้อง
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        return Object.keys(data).map(k => 'recipe:' + k);
+      }
+      return [];
+    },
+    async get(key) {
+      const path = key.replace(/:/g, '/');
+      const snapshot = await get(ref(db, path));
+      return snapshot.exists() ? JSON.stringify(snapshot.val()) : null;
+    },
+    async delete(key) {
+      const path = key.replace(/:/g, '/');
+      await remove(ref(db, path));
     }
-  },
-  async listPrefix() {
-    const snapshot = await get(ref(db, 'recipe'));
-    return snapshot.exists() ? Object.keys(snapshot.val()).map(k => 'recipe:' + k) : [];
-  },
-  async get(key) {
-    const path = key.replace(/:/g, '/');
-    const snapshot = await get(ref(db, path));
-    return snapshot.exists() ? JSON.stringify(snapshot.val()) : null;
-  },
-  async delete(key) {
-    const path = key.replace(/:/g, '/');
-    await remove(ref(db, path));
-  }
-};
+  };
 </script>
 <style>
   :root {
