@@ -28,7 +28,7 @@
       await set(ref(db, path), JSON.parse(val));
     },
     async listPrefix() {
-      const snapshot = await get(ref(db, 'recipe'));
+      const snapshot = await get(ref(db));
       return snapshot.exists() ? Object.keys(snapshot.val()).map(k => 'recipe:' + k) : [];
     },
     async get(key) {
