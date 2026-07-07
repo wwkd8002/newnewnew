@@ -28,27 +28,25 @@
       await set(ref(db, path), JSON.parse(val));
     },
     async listPrefix() {
-      // เปลี่ยนมาดึงข้อมูลทั้งหมดจาก Root ของฐานข้อมูลเลยค่ะ
-      const snapshot = await get(ref(db));
-      if (!snapshot.exists()) return [];
-      
-      const allData = snapshot.val();
-      // ถ้าโครงสร้างข้างในมี 'recipe' ให้ดึงเฉพาะส่วนนั้น
-      if (allData.recipe) {
-        return Object.keys(allData.recipe).map(k => 'recipe:' + k);
+      try {
+        const snapshot = await get(ref(db, 'recipe'));
+        console.log("เช็คข้อมูลจาก Firebase:", snapshot.val()); // ดูใน Console ว่าเห็นอะไร
+        
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          // แปลง Object ที่ได้จาก Firebase ให้เป็น Array ของชื่อไฟล์
+          const keys = Object.keys(data);
+          console.log("Key ที่เจอ:", keys);
+          return keys.map(k => 'recipe:' + k);
+        } else {
+          console.log("ไม่พบข้อมูลใน path 'recipe'");
+          return [];
+        }
+      } catch (e) {
+        console.error("Error ตอนโหลด:", e);
+        return [];
       }
-      return [];
     },
-    async get(key) {
-      const path = key.replace(/:/g, '/');
-      const snapshot = await get(ref(db, path));
-      return snapshot.exists() ? JSON.stringify(snapshot.val()) : null;
-    },
-    async delete(key) {
-      const path = key.replace(/:/g, '/');
-      await remove(ref(db, path));
-    }
-  };
 </script>
 <style>
   :root {
