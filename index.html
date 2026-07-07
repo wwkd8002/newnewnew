@@ -22,20 +22,29 @@
   const db = getDatabase(app);
 
   window.safeStorage = {
-    async set(key, val) {
-      localStorage.setItem(key, val);
-    },
-    async listPrefix() {
-      // ค้นหาคีย์ทั้งหมดที่ขึ้นต้นด้วย 'recipe:'
-      return Object.keys(localStorage).filter(k => k.startsWith('recipe:'));
-    },
-    async get(key) {
-      return localStorage.getItem(key);
-    },
-    async delete(key) {
-      localStorage.removeItem(key);
+  async set(key, val) {
+    const path = key.replace(/:/g, '/');
+    try {
+      await set(ref(db, path), JSON.parse(val));
+      console.log("บันทึกสำเร็จ!");
+    } catch (error) {
+      console.error("บันทึกล้มเหลว:", error);
     }
-  };
+  },
+  async listPrefix() {
+    const snapshot = await get(ref(db, 'recipe'));
+    return snapshot.exists() ? Object.keys(snapshot.val()).map(k => 'recipe:' + k) : [];
+  },
+  async get(key) {
+    const path = key.replace(/:/g, '/');
+    const snapshot = await get(ref(db, path));
+    return snapshot.exists() ? JSON.stringify(snapshot.val()) : null;
+  },
+  async delete(key) {
+    const path = key.replace(/:/g, '/');
+    await remove(ref(db, path));
+  }
+};
 </script>
 <style>
   :root {
