@@ -29,21 +29,21 @@
     },
     async listPrefix() {
       try {
-        const snapshot = await get(ref(db, 'recipe'));
-        console.log("เช็คข้อมูลจาก Firebase:", snapshot.val()); // ดูใน Console ว่าเห็นอะไร
+        const snapshot = await get(ref(db)); // ดึงข้อมูลจากรากฐานเลย (Root)
+        const allData = snapshot.val();
+        console.log("โครงสร้างข้อมูลทั้งหมดใน Firebase คือ:", allData); // เราจะเห็นโครงสร้างทั้งหมด
         
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          // แปลง Object ที่ได้จาก Firebase ให้เป็น Array ของชื่อไฟล์
-          const keys = Object.keys(data);
-          console.log("Key ที่เจอ:", keys);
-          return keys.map(k => 'recipe:' + k);
-        } else {
-          console.log("ไม่พบข้อมูลใน path 'recipe'");
-          return [];
+        if (!allData) return [];
+        
+        // ถ้าข้อมูลอยู่ใน 'recipe' ก็ให้ดึงมา
+        if (allData.recipe) {
+          return Object.keys(allData.recipe).map(k => 'recipe:' + k);
         }
+        
+        // ถ้าไม่เจอ 'recipe' ให้ลองคืนค่า keys ของข้อมูลทั้งหมดมาดู
+        return Object.keys(allData).map(k => 'key:' + k);
       } catch (e) {
-        console.error("Error ตอนโหลด:", e);
+        console.error("Error:", e);
         return [];
       }
     },
