@@ -27,16 +27,19 @@
       const path = key.replace(/:/g, '/');
       await set(ref(db, path), JSON.parse(val));
     },
-    // เพิ่มฟังก์ชันอัปเดตทับโดยเฉพาะ
-    async update(key, val) {
-      const path = key.replace(/:/g, '/');
-      await set(ref(db, path), JSON.parse(val));
-    },
     async listPrefix() {
+      // ดึงข้อมูลทั้งหมดใน 'recipe'
       const snapshot = await get(ref(db, 'recipe'));
       if (!snapshot.exists()) return [];
+      
       const data = snapshot.val();
-      return Object.keys(data).map(k => 'recipe:' + k);
+      const keys = [];
+      
+      // วนลูปเพื่อเก็บรหัสแปลกๆ นั้นไว้ เพื่อให้ระบบเรียกข้อมูลได้
+      for (let id in data) {
+        keys.push('recipe:' + id);
+      }
+      return keys;
     },
     async get(key) {
       const path = key.replace(/:/g, '/');
@@ -299,9 +302,8 @@
     <h2>Save recipe</h2>
     <div class="card-note">Save your recipes securely on the cloud.</div>
     <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
-     <input type="text" id="recipeNameInput" placeholder="Name this recipe, e.g. Chocolate chip cookies" style="flex:1; min-width:180px; padding:8px;">
-<button class="btn" id="saveBtn">Save this recipe</button>
-<button class="btn" id="updateBtn" style="display:none;">Save Changes</button>
+      <input type="text" id="recipeNameInput" placeholder="Name this recipe, e.g. Chocolate chip cookies" style="flex:1; min-width:180px; padding:9px 10px; border:1px solid var(--paper-line); border-radius:3px; font-family:var(--sans); font-size:14px;">
+      <button class="btn" id="saveBtn">Save this recipe</button>
     </div>
     <div id="saveStatus" class="status-msg"></div>
     <div id="savedList" class="saved-list" style="margin-top:12px;"></div>
@@ -971,32 +973,6 @@ updateBakeTimeEstimate();
 setTimeout(() => {
   refreshSavedList();
 }, 1000);
-  // 1. สร้างตัวแปรเก็บ ID สูตรที่เปิดอยู่
-let currentRecipeId = null;
-
-// 2. ดึงปุ่ม Save Changes มาจากหน้าเว็บ
-const updateBtn = document.getElementById('updateBtn');
-
-// 3. ฟังก์ชันสำหรับบันทึกทับ (Update)
-updateBtn.addEventListener('click', async () => {
-    if (!currentRecipeId) {
-        alert("กรุณาเปิดสูตรอาหารก่อนทำการบันทึกทับค่ะ");
-        return;
-    }
-    
-    // ดึงค่าสูตรปัจจุบันจากหน้าเว็บ
-    const recipeData = getRecipeDataFromPage(); 
-    
-    // บันทึกทับลง Firebase
-    await window.safeStorage.set('recipe:' + currentRecipeId, JSON.stringify(recipeData));
-    
-    alert("บันทึกทับสูตรเดิมเรียบร้อยแล้วค่ะ!");
-});
-
-// 4. วิธีทำให้ปุ่มโชว์ (ให้คุณไปเพิ่มบรรทัดนี้ในปุ่ม Open เดิมของคุณ)
-// เมื่อกดปุ่ม Open ในรายการ ให้ใส่คำสั่ง:
-// currentRecipeId = 'รหัสสูตรนั้นๆ';
-// document.getElementById('updateBtn').style.display = 'inline';
 </script>
 </body>
 </html>
