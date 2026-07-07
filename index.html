@@ -858,10 +858,15 @@ function currentRecipeData(){
 async function refreshSavedList(retries = 3) {
   const listEl = document.getElementById('savedList');
   if(!listEl) return;
+  
   try {
     const keys = await safeStorage.listPrefix();
     listEl.innerHTML = '';
-    if(keys.length === 0){ listEl.innerHTML = 'No saved recipes yet.'; return; }
+    
+    if(keys.length === 0){
+      listEl.innerHTML = '<div class="status-msg">No saved recipes yet.</div>';
+      return;
+    }
     
     for(const key of keys){
       let rawVal = await safeStorage.get(key);
@@ -877,7 +882,7 @@ async function refreshSavedList(retries = 3) {
       
       const actions = document.createElement('div');
       actions.className='saved-actions';
-      
+
       const loadBtn = document.createElement('button');
       loadBtn.className='btn secondary small'; loadBtn.textContent='Open';
       loadBtn.onclick=()=>{
@@ -888,28 +893,32 @@ async function refreshSavedList(retries = 3) {
         document.getElementById('origBakeTime').value = data.origBakeTime || '';
         document.getElementById('origPieceWeight').value = data.origPieceWeight || '';
         scaleMode='pct'; scalePct=100; overrideRowId=null;
-        renderRows(); renderResults(); updateBakeTimeEstimate();
-        document.getElementById('saveStatus').textContent = `Opened "${label}".`;
+        renderRows(); renderResults();
+        updateBakeTimeEstimate();
+        document.getElementById('saveStatus').textContent = `Opened recipe "${label}".`;
+        document.getElementById('saveStatus').className='status-msg ok';
       };
 
       const delBtn = document.createElement('button');
       delBtn.className='btn danger small'; delBtn.textContent='Delete';
-      delBtn.onclick=async ()=>{ await safeStorage.delete(key); refreshSavedList(); };
+      delBtn.onclick=async ()=>{
+        await safeStorage.delete(key);
+        refreshSavedList();
+      };
 
       actions.appendChild(loadBtn); actions.appendChild(delBtn);
       item.appendChild(actions);
       listEl.appendChild(item);
     }
   } catch(err) {
-    if (retries > 0) setTimeout(() => refreshSavedList(retries - 1), 1000);
-    else listEl.innerHTML = '<div class="status-msg err">Unable to load list.</div>';
+    // หากโหลดไม่ทัน ให้ลองใหม่สูงสุด 3 ครั้ง ครั้งละ 1 วินาที
+    if (retries > 0) {
+      console.log(`Retrying... (${retries} attempts left)`);
+      setTimeout(() => refreshSavedList(retries - 1), 1000);
+    } else {
+      listEl.innerHTML = '<div class="status-msg err">Unable to load list.</div>';
+    }
   }
-}
-
-function addRow(data = {}) {
-  const row = Object.assign({id: uid(), name:'', category:'All-purpose flour', amount:'', unit:'g'}, data);
-  ingredients.push(row);
-  renderRows(); renderResults(); renderPills(); updateTotalReadout(); updateBakeTimeEstimate();
 }
 
 document.getElementById('saveBtn').addEventListener('click', async ()=>{
@@ -917,13 +926,19 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   const name = nameInput.value.trim();
   const statusEl = document.getElementById('saveStatus');
   if(!name){ statusEl.textContent='Name the recipe first.'; statusEl.className='status-msg err'; return; }
+  if(ingredients.length===0){ statusEl.textContent='No ingredients to save yet.'; statusEl.className='status-msg err'; return; }
+
   try{
     const key = `recipe:${name}-${Date.now()}`;
     await safeStorage.set(key, JSON.stringify(currentRecipeData()));
     statusEl.textContent = `Saved "${name}".`;
+    statusEl.className='status-msg ok';
     nameInput.value='';
     refreshSavedList();
-  }catch(err){ statusEl.textContent = 'Save failed.'; }
+  }catch(err){
+    statusEl.textContent = 'Save failed.';
+    statusEl.className='status-msg err';
+  }
 });
 
 document.getElementById('addRowBtn').onclick = function(){ addRow(); };
@@ -932,7 +947,12 @@ document.getElementById("clearBtn").addEventListener("click",function(){
   if(document.getElementById("recipeUrl")) document.getElementById("recipeUrl").value="";
   document.getElementById("pasteBox").value="";
   document.getElementById("notesBox").value="";
-  ingredients=[]; renderRows(); renderResults();
+  document.getElementById("extractStatus").textContent="";
+  document.getElementById("origBakeTime").value="";
+  document.getElementById("origPieceWeight").value="";
+  recipeOvenTempC=null;
+  ingredients=[];overrideRowId=null;rowOverrides={};totalTargetGrams=null;scalePct=100;scaleMode="pct";
+  renderRows();renderResults();renderPills();updateBakeTimeEstimate();
 });
 
 addRow({name:'All-purpose flour', category:'All-purpose flour', amount:300, unit:'g'});
@@ -940,5 +960,11 @@ addRow({name:'Butter', category:'Butter', amount:227, unit:'g'});
 addRow({name:'Granulated sugar', category:'Granulated sugar', amount:200, unit:'g'});
 addRow({name:'Egg', category:'Other / Custom', amount:2, unit:'egg', eggSize:'Large (L, ~50g)'});
 
-renderRows(); renderPills(); renderResults();
+renderRows();
+renderPills();
+renderResults();
+updateTotalReadout();
+updateBakeTimeEstimate();
+
+// เรียกใช้หลังจากโหลดหน้าเว็บ 1.5 วินาที เพื่อให้ Firebase เชื่อมต่อเสร็จก่อน
 window.addEventListener('load', () => setTimeout(refreshSavedList, 1500));
