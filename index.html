@@ -6,7 +6,7 @@
 <title>Recipe Scaler — Baking Calculator</title>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-  import { getDatabase, ref, set, get, remove, child } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+  import { getDatabase, ref, set, get, remove } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAVQj3_3fC2KYUAE4SkxxgGF1is0JMH3QI",
@@ -42,7 +42,7 @@
   };
 </script>
 <style>
-  :root {
+:root {
     --paper: #F1ECE0;
     --paper-line: #DCD3BF;
     --ink: #362B22;
@@ -959,3 +959,36 @@ refreshSavedList();
 </script>
 </body>
 </html>
+//// ส่วนนี้คือฟังก์ชันดึงข้อมูลที่ผมแก้ไขให้ (ให้เอาไปวางแทนที่ฟังก์ชันดึงข้อมูลเดิมของคุณ):
+  async function refreshSavedListWithRetry(retries = 3) {
+    const listEl = document.getElementById('savedList');
+    if(!listEl) return;
+    try {
+      const keys = await window.safeStorage.listPrefix();
+      if(keys.length === 0) { listEl.innerHTML = '<div class="status-msg">No saved recipes yet.</div>'; return; }
+      listEl.innerHTML = '';
+      for(const key of keys){
+        let rawVal = await window.safeStorage.get(key);
+        if(!rawVal) continue;
+        let data = JSON.parse(rawVal);
+        
+        const item = document.createElement('div');
+        item.className='saved-item';
+        item.innerHTML = `<div>${key.split(':')[1]}</div>`;
+        const delBtn = document.createElement('button');
+        delBtn.className='btn danger small'; delBtn.textContent='Delete';
+        delBtn.onclick = async()=>{ await window.safeStorage.delete(key); refreshSavedListWithRetry(); };
+        item.appendChild(delBtn);
+        listEl.appendChild(item);
+      }
+    } catch(err) {
+      if (retries > 0) setTimeout(() => refreshSavedListWithRetry(retries - 1), 1000);
+      else listEl.innerHTML = '<div class="status-msg err">Unable to load list.</div>';
+    }
+  }
+
+  // แก้ไขให้เรียกใช้หลังจากโหลดเว็บเสร็จ 1.5 วินาที
+  window.addEventListener('load', () => {
+    setTimeout(refreshSavedListWithRetry, 1500);
+  });
+window.addEventListener('load', ...)
