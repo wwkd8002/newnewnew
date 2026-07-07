@@ -28,25 +28,24 @@
       await set(ref(db, path), JSON.parse(val));
     },
     async listPrefix() {
-      try {
-        const snapshot = await get(ref(db)); // ดึงข้อมูลจากรากฐานเลย (Root)
-        const allData = snapshot.val();
-        console.log("โครงสร้างข้อมูลทั้งหมดใน Firebase คือ:", allData); // เราจะเห็นโครงสร้างทั้งหมด
-        
-        if (!allData) return [];
-        
-        // ถ้าข้อมูลอยู่ใน 'recipe' ก็ให้ดึงมา
-        if (allData.recipe) {
-          return Object.keys(allData.recipe).map(k => 'recipe:' + k);
-        }
-        
-        // ถ้าไม่เจอ 'recipe' ให้ลองคืนค่า keys ของข้อมูลทั้งหมดมาดู
-        return Object.keys(allData).map(k => 'key:' + k);
-      } catch (e) {
-        console.error("Error:", e);
-        return [];
-      }
+      // ดึงข้อมูลทั้งหมดจาก 'recipe'
+      const snapshot = await get(ref(db, 'recipe'));
+      if (!snapshot.exists()) return [];
+      
+      const data = snapshot.val();
+      // ข้อมูลมีรหัสแปลกๆ (เช่น -OT...) นำหน้า เราจะดึงทุกคีย์ออกมา
+      return Object.keys(data).map(k => 'recipe:' + k);
     },
+    async get(key) {
+      const path = key.replace(/:/g, '/');
+      const snapshot = await get(ref(db, path));
+      return snapshot.exists() ? JSON.stringify(snapshot.val()) : null;
+    },
+    async delete(key) {
+      const path = key.replace(/:/g, '/');
+      await remove(ref(db, path));
+    }
+  };
 </script>
 <style>
   :root {
