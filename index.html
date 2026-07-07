@@ -941,6 +941,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   }
 });
 
+// 1. กำหนด Event ให้ปุ่มต่างๆ
 document.getElementById('addRowBtn').onclick = function(){ addRow(); };
 
 document.getElementById("clearBtn").addEventListener("click",function(){
@@ -951,20 +952,75 @@ document.getElementById("clearBtn").addEventListener("click",function(){
   document.getElementById("origBakeTime").value="";
   document.getElementById("origPieceWeight").value="";
   recipeOvenTempC=null;
-  ingredients=[];overrideRowId=null;rowOverrides={};totalTargetGrams=null;scalePct=100;scaleMode="pct";
-  renderRows();renderResults();renderPills();updateBakeTimeEstimate();
+  ingredients=[]; overrideRowId=null; rowOverrides={}; totalTargetGrams=null; scalePct=100; scaleMode="pct";
+  renderRows(); renderResults(); renderPills(); updateBakeTimeEstimate();
 });
 
+// 2. ฟังก์ชันดึงรายการที่บันทึกไว้ (เวอร์ชันเสถียร)
+async function refreshSavedList(retries = 3) {
+  const listEl = document.getElementById('savedList');
+  if(!listEl) return;
+  listEl.innerHTML = '';
+  try {
+    const keys = await safeStorage.listPrefix();
+    if(keys.length === 0){
+      listEl.innerHTML = '<div class="status-msg">No saved recipes yet.</div>';
+      return;
+    }
+    for(const key of keys){
+      let rawVal = await safeStorage.get(key);
+      if(!rawVal) continue;
+      let data = JSON.parse(rawVal);
+      if(!data) continue;
+
+      const item = document.createElement('div');
+      item.className='saved-item';
+      const label = key.replace(/^recipe:/,'').replace(/-\d+$/,'');
+      const dateStr = data.savedAt ? new Date(data.savedAt).toLocaleString() : '';
+      item.innerHTML = `<div><div>${label}</div><div class="meta">${dateStr} · ${(data.ingredients||[]).length} ingredient(s)</div></div>`;
+      
+      const actions = document.createElement('div');
+      actions.className='saved-actions';
+      
+      const loadBtn = document.createElement('button');
+      loadBtn.className='btn secondary small'; loadBtn.textContent='Open';
+      loadBtn.onclick=()=>{
+        ingredients = (data.ingredients||[]).map(ing=>Object.assign({id:uid()}, ing));
+        if(document.getElementById('recipeUrl')) document.getElementById('recipeUrl').value = data.recipeUrl || '';
+        document.getElementById('notesBox').value = data.notes || '';
+        recipeOvenTempC = (typeof data.ovenTempC === 'number') ? data.ovenTempC : null;
+        document.getElementById('origBakeTime').value = data.origBakeTime || '';
+        document.getElementById('origPieceWeight').value = data.origPieceWeight || '';
+        scaleMode='pct'; scalePct=100; overrideRowId=null;
+        renderRows(); renderResults(); updateBakeTimeEstimate();
+      };
+
+      const delBtn = document.createElement('button');
+      delBtn.className='btn danger small'; delBtn.textContent='Delete';
+      delBtn.onclick=async ()=>{ await safeStorage.delete(key); refreshSavedList(); };
+
+      actions.appendChild(loadBtn); actions.appendChild(delBtn);
+      item.appendChild(actions);
+      listEl.appendChild(item);
+    }
+  } catch(err) {
+    if (retries > 0) setTimeout(() => refreshSavedList(retries - 1), 1000);
+    else listEl.innerHTML = '<div class="status-msg err">Unable to load list.</div>';
+  }
+}
+
+// 3. เริ่มต้นค่าเริ่มต้นของสูตร
 addRow({name:'All-purpose flour', category:'All-purpose flour', amount:300, unit:'g'});
 addRow({name:'Butter', category:'Butter', amount:227, unit:'g'});
 addRow({name:'Granulated sugar', category:'Granulated sugar', amount:200, unit:'g'});
 addRow({name:'Egg', category:'Other / Custom', amount:2, unit:'egg', eggSize:'Large (L, ~50g)'});
 
+// 4. สั่ง Render หน้าจอและโหลด Firebase
 renderRows();
 renderPills();
 renderResults();
 updateTotalReadout();
 updateBakeTimeEstimate();
 
-// เรียกใช้หลังจากโหลดหน้าเว็บ 1.5 วินาที เพื่อให้ Firebase เชื่อมต่อเสร็จก่อน
+// เรียกใช้หลังจากโหลดเสร็จ 1.5 วินาที
 window.addEventListener('load', () => setTimeout(refreshSavedList, 1500));
