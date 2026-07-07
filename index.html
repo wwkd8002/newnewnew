@@ -27,19 +27,16 @@
       const path = key.replace(/:/g, '/');
       await set(ref(db, path), JSON.parse(val));
     },
+    // เพิ่มฟังก์ชันอัปเดตทับโดยเฉพาะ
+    async update(key, val) {
+      const path = key.replace(/:/g, '/');
+      await set(ref(db, path), JSON.parse(val));
+    },
     async listPrefix() {
-      // ดึงข้อมูลทั้งหมดใน 'recipe'
       const snapshot = await get(ref(db, 'recipe'));
       if (!snapshot.exists()) return [];
-      
       const data = snapshot.val();
-      const keys = [];
-      
-      // วนลูปเพื่อเก็บรหัสแปลกๆ นั้นไว้ เพื่อให้ระบบเรียกข้อมูลได้
-      for (let id in data) {
-        keys.push('recipe:' + id);
-      }
-      return keys;
+      return Object.keys(data).map(k => 'recipe:' + k);
     },
     async get(key) {
       const path = key.replace(/:/g, '/');
