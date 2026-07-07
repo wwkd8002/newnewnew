@@ -325,6 +325,18 @@ const DENSITY = {
   "Salt": 288, "Baking soda": 220, "Baking powder": 192, "Vanilla extract": 208,
   "Ground cinnamon": 125, "Cornstarch": 128, "Yeast": 150, "Lemon juice": 240, "Other / Custom": null
 };
+
+const LIQUID_DENSITY = {
+  "Milk":1.03,
+  "Water":1.00,
+  "Heavy cream":1.02,
+  "Vanilla extract":0.88,
+  "Vegetable oil":0.92,
+  "Honey":1.42,
+  "Maple syrup":1.33,
+  "Lemon juice":1.03
+};
+
 const SUGAR_CATEGORIES = ["Granulated sugar", "Brown sugar, packed"];
 const WEIGHT_UNIT_G = { "g": 1, "kg": 1000, "oz": 28.3495 };
 const EGG_PARTS = {
@@ -420,8 +432,8 @@ function removeRow(id){
 }
 
 function unitOptionsFor(category){
-  if(category === "Other / Custom") return ["g","kg","oz","cup","tbsp","tsp","egg"];
-  return ["cup","tbsp","tsp","g","kg","oz","egg"];
+  if(category === "Other / Custom") return ["g","kg","oz","cup","tbsp","tsp","ml","egg"];
+  return ["cup","tbsp","tsp","ml","g","kg","oz","egg"];
 }
 
 function gramsPerCup(row){
@@ -434,6 +446,10 @@ function originalGrams(row){
   if(isNaN(amt)) return null;
   if(row.unit==='egg') return amt * EGG_PARTS[row.eggSize][detectEggPart(row.name)];
   if(WEIGHT_UNIT_G[row.unit]) return amt * WEIGHT_UNIT_G[row.unit];
+  if(row.unit==='ml'){
+    const d=LIQUID_DENSITY[row.category];
+    return d ? amt*d : null;
+  }
   const gpc = gramsPerCup(row);
   if(gpc==null || isNaN(gpc)) return null;
   if(row.unit==='cup') return amt * gpc;
@@ -819,7 +835,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     const cleanLine = line.trim();
     if(!cleanLine) return;
     
-    const match = cleanLine.match(/^([\d\/\s\-\.]+)\s*(g|grams|กรัม|cup|cups|ถ้วย|tbsp|ช้อนโต๊ะ|tsp|ช้อนชา|egg|eggs|ฟอง)\s+(.+)$/i);
+    const match = cleanLine.match(/^([\d\/\s\-\.]+)\s*(g|grams|กรัม|ml|milliliter|milliliters|cup|cups|ถ้วย|tbsp|ช้อนโต๊ะ|tsp|ช้อนชา|egg|eggs|ฟอง)\s+(.+)$/i);
     if(match){
       const amtStr = match[1].trim();
       const unitStr = match[2].toLowerCase().trim();
@@ -829,6 +845,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
       if(unitStr.includes('cup') || unitStr.includes('ถ้วย')) finalUnit = 'cup';
       else if(unitStr.includes('tbsp') || unitStr.includes('ช้อนโต๊ะ')) finalUnit = 'tbsp';
       else if(unitStr.includes('tsp') || unitStr.includes('ช้อนชา')) finalUnit = 'tsp';
+      else if(unitStr.includes('ml')) finalUnit='ml';
       else if(unitStr.includes('egg') || unitStr.includes('ฟอง')) finalUnit = 'egg';
 
       newIngredients.push({
