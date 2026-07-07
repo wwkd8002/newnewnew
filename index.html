@@ -184,6 +184,7 @@
     <textarea id="pasteBox" placeholder="Paste the full recipe text here..."></textarea>
     <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
       <button class="btn" id="extractBtn">Extract automatically</button>
+      <button class="btn secondary" id="clearBtn">🗑 Clear</button>
       <span id="extractStatus" class="status-msg"></span>
     </div>
   </div>
@@ -894,6 +895,36 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
 });
 
 document.getElementById('addRowBtn').onclick = function(){ addRow(); };
+
+
+// =========================
+// Clear Everything
+// =========================
+document.getElementById("clearBtn").addEventListener("click", function () {
+
+    document.getElementById("pasteBox").value = "";
+    document.getElementById("notesBox").value = "";
+    document.getElementById("extractStatus").textContent = "";
+
+    document.getElementById("origBakeTime").value = "";
+    document.getElementById("origPieceWeight").value = "";
+
+    recipeOvenTempC = null;
+
+    ingredients = [];
+    overrideRowId = null;
+    rowOverrides = {};
+    totalTargetGrams = null;
+    scalePct = 100;
+    scaleMode = "pct";
+
+    renderRows();
+    renderResults();
+    renderPills();
+    updateBakeTimeEstimate();
+
+});
+
 
 // ---------- Initializing layout presets... ----------
 addRow({name:'All-purpose flour', category:'All-purpose flour', amount:300, unit:'g'});
