@@ -28,8 +28,14 @@
       await set(ref(db, path), JSON.parse(val));
     },
     async listPrefix() {
-      const snapshot = await get(ref(db));
-      return snapshot.exists() ? Object.keys(snapshot.val()).map(k => 'recipe:' + k) : [];
+      // แก้ไขตรงนี้: ลองดึงจาก 'recipe' โดยใช้ ref(db, 'recipe')
+      const snapshot = await get(ref(db, 'recipe'));
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        // ส่งคืนค่าเป็น array ของ keys
+        return Object.keys(data).map(k => 'recipe:' + k);
+      }
+      return [];
     },
     async get(key) {
       const path = key.replace(/:/g, '/');
