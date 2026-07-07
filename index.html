@@ -958,7 +958,11 @@ renderPills();
 renderResults();
 updateTotalReadout();
 updateBakeTimeEstimate();
-refreshSavedList();
+
+// เพิ่ม setTimeout ครอบ refreshSavedList ไว้แบบนี้ค่ะ
+setTimeout(() => {
+  refreshSavedList();
+}, 1000);
 </script>
 </body>
 </html>
