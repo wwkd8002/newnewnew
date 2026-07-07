@@ -328,13 +328,35 @@ const DENSITY = {
 
 const LIQUID_DENSITY = {
   "Milk":1.03,
-  "Water":1.00,
+  "Whole milk":1.03,
+  "Low fat milk":1.03,
+  "Skim milk":1.035,
+  "Buttermilk":1.03,
+  "Evaporated milk":1.06,
+  "Condensed milk":1.28,
   "Heavy cream":1.02,
+  "Double cream":1.01,
+  "Whipping cream":1.01,
+  "Sour cream":0.98,
+  "Greek yogurt":1.08,
+  "Yogurt":1.03,
+  "Coconut milk":1.02,
+  "Coconut cream":0.97,
+  "Water":1.00,
   "Vanilla extract":0.95,
+  "Vanilla paste":1.10,
+  "Lemon juice":1.03,
+  "Coffee":1.00,
+  "Espresso":1.01,
   "Vegetable oil":0.92,
+  "Canola oil":0.92,
+  "Olive oil":0.91,
+  "Melted butter":0.96,
   "Honey":1.42,
   "Maple syrup":1.32,
-  "Lemon juice":1.03
+  "Corn syrup":1.48,
+  "Glucose syrup":1.54,
+  "Molasses":1.40
 };
 
 const SUGAR_CATEGORIES = ["Granulated sugar", "Brown sugar, packed"];
@@ -396,7 +418,16 @@ const CATEGORY_RULES = [
   ['salt', 'Salt'], ['vanilla', 'Vanilla extract'],
   ['cinnamon', 'Ground cinnamon'], ['corn starch', 'Cornstarch'],
   ['cornstarch', 'Cornstarch'], ['cornflour', 'Cornstarch'],
-  ['yeast', 'Yeast'], ['lemon juice', 'Lemon juice']
+  ['yeast', 'Yeast'], ['lemon juice', 'Lemon juice'],
+  ['buttermilk','Buttermilk'],['whole milk','Milk'],['skim milk','Milk'],
+  ['low fat milk','Milk'],['greek yogurt','Other / Custom'],
+  ['yogurt','Other / Custom'],['sour cream','Other / Custom'],
+  ['evaporated milk','Other / Custom'],['condensed milk','Other / Custom'],
+  ['coconut milk','Other / Custom'],['coconut cream','Other / Custom'],
+  ['olive oil','Vegetable oil'],['canola oil','Vegetable oil'],
+  ['corn syrup','Other / Custom'],['glucose syrup','Other / Custom'],
+  ['molasses','Other / Custom'],['espresso','Other / Custom'],
+  ['coffee','Other / Custom'],['melted butter','Butter']
 ];
 
 function detectCategory(name){
@@ -761,7 +792,14 @@ document.getElementById('extractBtn').addEventListener('click', function(){
   statusEl.className='status-msg';
 
   let localNotes = [];
-  const lines = text.split('\n');
+
+  // Normalize common baking units
+  const normalizedText = text
+    .replace(/sticks?\s+butter/gi,'113 g butter')
+    .replace(/pinch(es)?/gi,'0.36 g')
+    .replace(/dash(es)?/gi,'0.6 ml');
+
+  const lines = normalizedText.split('\n');
   
   const tempMatch = text.match(/(\d{3})\s*(?:°|องศา|C|F)/i);
   if(tempMatch) {
