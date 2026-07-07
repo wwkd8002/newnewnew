@@ -343,6 +343,7 @@ let rowOverrides = {};
 let totalTargetGrams = null;
 let lastTotalOrigGrams = null;
 let recipeOvenTempC = null;
+let editingRecipeKey = null;
 
 function uid(){ return 'r'+Math.random().toString(36).slice(2,9); }
 function isSugarRow(row){ return SUGAR_CATEGORIES.includes(row.category); }
@@ -893,6 +894,15 @@ async function refreshSavedList(){
       const loadBtn = document.createElement('button');
       loadBtn.className='btn secondary small'; loadBtn.textContent='Open';
       loadBtn.onclick=()=>{
+
+      editingRecipeKey = key;
+
+      document.getElementById("recipeNameInput").value = label;
+
+      document.getElementById("saveBtn").textContent =
+        "💾 Save Changes";
+
+    ingredients = (data.ingredients||[]).map(ing=>Object.assign({id:uid()}, ing));
         ingredients = (data.ingredients||[]).map(ing=>Object.assign({id:uid()}, ing));
         if(document.getElementById('recipeUrl')) document.getElementById('recipeUrl').value = data.recipeUrl || '';
         document.getElementById('notesBox').value = data.notes || '';
@@ -930,11 +940,23 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   if(ingredients.length===0){ statusEl.textContent='No ingredients to save yet.'; statusEl.className='status-msg err'; return; }
 
   try{
-    const key = `recipe:${name}-${Date.now()}`;
+    let key;
+
+if(editingRecipeKey){
+
+    key = editingRecipeKey;
+
+}else{
+
+    key = `recipe:${name}-${Date.now()}`;
+
+}
     await safeStorage.set(key, JSON.stringify(currentRecipeData()));
-    statusEl.textContent = `Saved "${name}".`;
+    statusEl.textContent =
+editingRecipeKey
+? `Changes saved.`
+: `Recipe saved.`;
     statusEl.className='status-msg ok';
-    nameInput.value='';
     refreshSavedList();
   }catch(err){
     statusEl.textContent = 'Save failed.';
@@ -954,7 +976,7 @@ document.getElementById("extractStatus").textContent="";
 document.getElementById("origBakeTime").value="";
 document.getElementById("origPieceWeight").value="";
 recipeOvenTempC=null;
-ingredients=[];overrideRowId=null;rowOverrides={};totalTargetGrams=null;scalePct=100;scaleMode="pct";
+ingredients=[];editingRecipeKey=null;document.getElementById("recipeNameInput").value="";document.getElementById("saveBtn").textContent="Save this recipe";overrideRowId=null;rowOverrides={};totalTargetGrams=null;scalePct=100;scaleMode="pct";
 renderRows();renderResults();renderPills();updateBakeTimeEstimate();
 });
 
