@@ -931,7 +931,9 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   }
 });
 
-document.getElementById('addRowBtn').onclick = function(){ addRow(); };
+document.getElementById('addRowBtn').addEventListener('click', function() {
+    addRow();
+});
 
 document.getElementById("clearBtn").addEventListener("click",function(){
 if(document.getElementById("recipeUrl")) document.getElementById("recipeUrl").value="";
