@@ -21,7 +21,7 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  // เปลี่ยนมาใช้ window.safeStorage แบบนี้เพื่อให้แน่ใจว่ามันมองเห็น db
+  // ย้ายมาไว้ในนี้ เพื่อให้เห็นตัวแปร db
   window.safeStorage = {
     async set(key, val) {
       const path = key.replace(/:/g, '/');
@@ -29,12 +29,7 @@
     },
     async listPrefix() {
       const snapshot = await get(ref(db, 'recipe'));
-      // แก้ไขตรงนี้ให้ดึงรายการจาก snapshot.val() ที่ถูกต้อง
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        return Object.keys(data).map(k => 'recipe:' + k);
-      }
-      return [];
+      return snapshot.exists() ? Object.keys(snapshot.val()).map(k => 'recipe:' + k) : [];
     },
     async get(key) {
       const path = key.replace(/:/g, '/');
