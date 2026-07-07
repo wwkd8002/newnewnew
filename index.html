@@ -4,43 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Recipe Scaler — Baking Calculator</title>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-  import { getDatabase, ref, set, get, remove, child } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyAVQj3_3fC2KYUAE4SkxxgGF1is0JMH3QI",
-    authDomain: "recipe-b9299.firebaseapp.com",
-    databaseURL: "https://recipe-b9299-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "recipe-b9299",
-    storageBucket: "recipe-b9299.firebasestorage.app",
-    messagingSenderId: "383397986421",
-    appId: "1:383397986421:web:69b14a24e96422c51ab83c"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-
-  window.safeStorage = {
-    async set(key, val) {
-      const path = key.replace(/:/g, '/');
-      await set(ref(db, path), JSON.parse(val));
-    },
-    async listPrefix() {
-      const snapshot = await get(ref(db, 'recipe'));
-      return snapshot.exists() ? Object.keys(snapshot.val()).map(k => 'recipe:' + k) : [];
-    },
-    async get(key) {
-      const path = key.replace(/:/g, '/');
-      const snapshot = await get(ref(db, path));
-      return snapshot.exists() ? JSON.stringify(snapshot.val()) : null;
-    },
-    async delete(key) {
-      const path = key.replace(/:/g, '/');
-      await remove(ref(db, path));
-    }
-  };
-</script>
 <style>
   :root {
     --paper: #F1ECE0;
@@ -289,7 +252,7 @@
 
   <div class="card">
     <h2>Save recipe</h2>
-    <div class="card-note">Save your recipes securely on the cloud.</div>
+    <div class="card-note">Save your recipes securely inside your browser or chat window.</div>
     <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
       <input type="text" id="recipeNameInput" placeholder="Name this recipe, e.g. Chocolate chip cookies" style="flex:1; min-width:180px; padding:9px 10px; border:1px solid var(--paper-line); border-radius:3px; font-family:var(--sans); font-size:14px;">
       <button class="btn" id="saveBtn">Save this recipe</button>
@@ -305,6 +268,28 @@
 </div>
 
 <script>
+// ---------- STREAMING_CHUNK: Implementing unified browser storage interface... ----------
+const safeStorage = {
+  async set(key, val) {
+    try { if(window.storage && window.storage.set) { await window.storage.set(key, val, false); return; } } catch(e){}
+    try { localStorage.setItem(key, val); } catch(e){}
+  },
+  async listPrefix() {
+    try { if(window.storage && window.storage.list) { const res = await window.storage.list('recipe:', false); return (res && res.keys) || []; } } catch(e){}
+    try { return Object.keys(localStorage).filter(k => k.startsWith('recipe:')); } catch(e){}
+    return [];
+  },
+  async get(key) {
+    try { if(window.storage && window.storage.get) { const res = await window.storage.get(key, false); return res ? res.value : null; } } catch(e){}
+    try { return localStorage.getItem(key); } catch(e){}
+    return null;
+  },
+  async delete(key) {
+    try { if(window.storage && window.storage.delete) { await window.storage.delete(key, false); return; } } catch(e){}
+    try { localStorage.removeItem(key); } catch(e){}
+  }
+};
+
 const DENSITY = {
   "All-purpose flour": 120, "Cake flour": 114, "Bread flour": 127, "Granulated sugar": 200,
   "Brown sugar, packed": 220, "Powdered sugar": 120, "Butter": 227, "Vegetable oil": 218,
@@ -337,6 +322,7 @@ function uid(){ return 'r'+Math.random().toString(36).slice(2,9); }
 function isSugarRow(row){ return SUGAR_CATEGORIES.includes(row.category); }
 function round1(n){ return Math.round(n*10)/10; }
 
+// ---------- STREAMING_CHUNK: Constructing mathematical amount interpreters... ----------
 function parseAmount(str) {
   if(str==null) return NaN;
   str = String(str).trim();
@@ -437,6 +423,7 @@ function effectiveOrig(row, orig){
   return orig;
 }
 
+// ---------- STREAMING_CHUNK: Managing dynamically generated rows... ----------
 function renderRows(){
   const box = document.getElementById('rows');
   box.innerHTML = '';
@@ -585,6 +572,7 @@ function renderPills(){
   });
 }
 
+// ---------- STREAMING_CHUNK: Computing proportional scaling outputs... ----------
 document.getElementById('customPct').addEventListener('input', e=>{
   const v = parseFloat(e.target.value);
   if(!isNaN(v) && v>0){
@@ -631,6 +619,7 @@ function GrandmaScale(){
   renderResults();
 }
 
+// ---------- STREAMING_CHUNK: Formatting scale output rows... ----------
 function renderResults(){
   const body = document.getElementById('resultsBody');
   body.innerHTML='';
@@ -723,6 +712,7 @@ function renderResults(){
   renderPills();
 }
 
+// ---------- STREAMING_CHUNK: Fine-tuning intelligent offline parser algorithms... ----------
 document.getElementById('extractBtn').addEventListener('click', function(){
   const text = document.getElementById('pasteBox').value.trim();
   const statusEl = document.getElementById('extractStatus');
@@ -734,6 +724,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
   let localNotes = [];
   const lines = text.split('\n');
   
+  // 1. ตรวจจับอุณหภูมิ (ไฟอบ) - เช่น 175C, 180 องศา, 350F
   const tempMatch = text.match(/(\d{3})\s*(?:°|องศา|C|F)/i);
   if(tempMatch) {
     let temp = parseInt(tempMatch[1], 10);
@@ -744,10 +735,12 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     localNotes.push(`🔥 Oven Temp: ${temp}°C`);
   }
 
+  // 2. ตรวจจับเวลาอบแบบชาญฉลาด (สแกนหาบรรทัดที่มีคีย์เวิร์ดอบ เตา เพื่อข้ามคีย์เวิร์ดพัก/ตีเนย)
   let detectedBakeTime = null;
   let rawBakeString = "";
   for (let line of lines) {
     const lowerLine = line.toLowerCase();
+    // ถ้าบรรทัดนี้พูดถึงการอบ (Bake, Baking, Oven, อบ, คุกกี้)
     if (lowerLine.includes('bake') || lowerLine.includes('baking') || lowerLine.includes('oven') || lowerLine.includes('อบ') || lowerLine.includes('ไฟบนล่าง')) {
       const match = line.match(/(\d+)\s*(?:-|–|to|ถึง|or)?\s*(\d+)?\s*(?:นาที|min|minute|mins|minutes)/i);
       if (match) {
@@ -760,6 +753,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     }
   }
 
+  // ตัวเลือกสำรอง หากหาบรรทัดเตาอบไม่เจอเลย ค่อยดึงระยะเวลาแรกที่เจอ
   if (!detectedBakeTime) {
     const fallbackMatch = text.match(/(\d+)\s*(?:-|–|to|ถึง|or)?\s*(\d+)?\s*(?:นาที|min|minute|mins|minutes)/i);
     if (fallbackMatch) {
@@ -775,6 +769,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     localNotes.push(`⏱️ Bake Time: ${rawBakeString} mins`);
   }
 
+  // 3. ตรวจจับการพักแป้งโดว์ / แช่ตู้เย็น (Chilling / Resting)
   let detectedChilling = null;
   for (let line of lines) {
     const lowerLine = line.toLowerCase();
@@ -795,10 +790,12 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     localNotes.push(`❄️ Chilling: ${detectedChilling}`);
   }
 
+  // 4. เทคนิคอื่นๆ (เคาะถาดคุ้กกี้)
   if(text.match(/(?:เคาะ|กระแทก|tap|bang)/i)) {
     localNotes.push(`💥 Note: Pan-tapping or tray-banging suggested`);
   }
 
+  // 5. สแกนแกะข้อมูลวัตถุดิบ (สแกนทีละบรรทัดที่มีโครงสร้าง ตัวเลข + หน่วย)
   let loadedCount = 0;
   let newIngredients = [];
 
@@ -854,20 +851,17 @@ function currentRecipeData(){
   };
 }
 
-// ฟังก์ชันดึงรายการสูตรอาหาร (ปรับปรุงให้โหลดเสถียรขึ้น)
-async function refreshSavedList(retries = 3) {
+// ---------- STREAMING_CHUNK: Managing saved list components... ----------
+async function refreshSavedList(){
   const listEl = document.getElementById('savedList');
   if(!listEl) return;
-  
-  try {
+  listEl.innerHTML = '';
+  try{
     const keys = await safeStorage.listPrefix();
-    listEl.innerHTML = '';
-    
-    if(keys.length === 0){
+    if(keys.length===0){
       listEl.innerHTML = '<div class="status-msg">No saved recipes yet.</div>';
       return;
     }
-    
     for(const key of keys){
       let rawVal = await safeStorage.get(key);
       if(!rawVal) continue;
@@ -910,14 +904,8 @@ async function refreshSavedList(retries = 3) {
       item.appendChild(actions);
       listEl.appendChild(item);
     }
-  } catch(err) {
-    // หากโหลดไม่ทัน ให้ลองใหม่สูงสุด 3 ครั้ง ครั้งละ 1 วินาที
-    if (retries > 0) {
-      console.log(`Retrying... (${retries} attempts left)`);
-      setTimeout(() => refreshSavedList(retries - 1), 1000);
-    } else {
-      listEl.innerHTML = '<div class="status-msg err">Unable to load list.</div>';
-    }
+  }catch(err){
+    listEl.innerHTML = '<div class="status-msg err">Unable to load list.</div>';
   }
 }
 
@@ -943,18 +931,20 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
 
 document.getElementById('addRowBtn').onclick = function(){ addRow(); };
 
+
 document.getElementById("clearBtn").addEventListener("click",function(){
-  if(document.getElementById("recipeUrl")) document.getElementById("recipeUrl").value="";
-  document.getElementById("pasteBox").value="";
-  document.getElementById("notesBox").value="";
-  document.getElementById("extractStatus").textContent="";
-  document.getElementById("origBakeTime").value="";
-  document.getElementById("origPieceWeight").value="";
-  recipeOvenTempC=null;
-  ingredients=[];overrideRowId=null;rowOverrides={};totalTargetGrams=null;scalePct=100;scaleMode="pct";
-  renderRows();renderResults();renderPills();updateBakeTimeEstimate();
+if(document.getElementById("recipeUrl")) document.getElementById("recipeUrl").value="";
+document.getElementById("pasteBox").value="";
+document.getElementById("notesBox").value="";
+document.getElementById("extractStatus").textContent="";
+document.getElementById("origBakeTime").value="";
+document.getElementById("origPieceWeight").value="";
+recipeOvenTempC=null;
+ingredients=[];overrideRowId=null;rowOverrides={};totalTargetGrams=null;scalePct=100;scaleMode="pct";
+renderRows();renderResults();renderPills();updateBakeTimeEstimate();
 });
 
+// ---------- Initializing layout presets... ----------
 addRow({name:'All-purpose flour', category:'All-purpose flour', amount:300, unit:'g'});
 addRow({name:'Butter', category:'Butter', amount:227, unit:'g'});
 addRow({name:'Granulated sugar', category:'Granulated sugar', amount:200, unit:'g'});
@@ -965,6 +955,7 @@ renderPills();
 renderResults();
 updateTotalReadout();
 updateBakeTimeEstimate();
-
-// เรียกใช้หลังจากโหลดหน้าเว็บ 1.5 วินาที เพื่อให้ Firebase เชื่อมต่อเสร็จก่อน
-window.addEventListener('load', () => setTimeout(refreshSavedList, 1500));
+refreshSavedList();
+</script>
+</body>
+</html>
