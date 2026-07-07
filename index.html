@@ -179,6 +179,12 @@
   </header>
 
   <div class="card">
+    <h2>Original Recipe URL (optional)</h2>
+    <div class="card-note">Save the original recipe link for future reference.</div>
+    <input type="url" id="recipeUrl" placeholder="https://example.com/recipe" style="width:100%;padding:10px;border:1px solid var(--paper-line);border-radius:3px;background:#fff;color:var(--ink);font-family:var(--sans);font-size:14px;">
+  </div>
+
+  <div class="card">
     <h2>Paste original recipe (optional)</h2>
     <div class="card-note">Copy the full recipe text (ingredients + method + oven temp/time) from wherever you found it and paste it here, then click "Extract automatically."</div>
     <textarea id="pasteBox" placeholder="Paste the full recipe text here..."></textarea>
@@ -706,108 +712,136 @@ function renderResults(){
   renderPills();
 }
 
-// ---------- STREAMING_CHUNK: Recipe Parser V2 ----------
+// ---------- STREAMING_CHUNK: Fine-tuning intelligent offline parser algorithms... ----------
 document.getElementById('extractBtn').addEventListener('click', function(){
+  const text = document.getElementById('pasteBox').value.trim();
+  const statusEl = document.getElementById('extractStatus');
+  if(!text){ statusEl.textContent='กรุณาวางสูตรก่อนกดปุ่มค่ะ'; statusEl.className='status-msg err'; return; }
 
-const text=document.getElementById('pasteBox').value.trim();
-const statusEl=document.getElementById('extractStatus');
+  statusEl.textContent='กำลังแกะสูตรเบื้องต้น...';
+  statusEl.className='status-msg';
 
-if(!text){
- statusEl.textContent='กรุณาวางสูตรก่อนกดปุ่มค่ะ';
- statusEl.className='status-msg err';
- return;
-}
+  let localNotes = [];
+  const lines = text.split('\n');
+  
+  // 1. ตรวจจับอุณหภูมิ (ไฟอบ) - เช่น 175C, 180 องศา, 350F
+  const tempMatch = text.match(/(\d{3})\s*(?:°|องศา|C|F)/i);
+  if(tempMatch) {
+    let temp = parseInt(tempMatch[1], 10);
+    if(text.toLowerCase().includes('f') && temp > 250) {
+      temp = Math.round((temp - 32) * 5 / 9);
+    }
+    recipeOvenTempC = temp;
+    localNotes.push(`🔥 Oven Temp: ${temp}°C`);
+  }
 
-statusEl.textContent='กำลังวิเคราะห์สูตร...';
-statusEl.className='status-msg';
+  // 2. ตรวจจับเวลาอบแบบชาญฉลาด (สแกนหาบรรทัดที่มีคีย์เวิร์ดอบ เตา เพื่อข้ามคีย์เวิร์ดพัก/ตีเนย)
+  let detectedBakeTime = null;
+  let rawBakeString = "";
+  for (let line of lines) {
+    const lowerLine = line.toLowerCase();
+    // ถ้าบรรทัดนี้พูดถึงการอบ (Bake, Baking, Oven, อบ, คุกกี้)
+    if (lowerLine.includes('bake') || lowerLine.includes('baking') || lowerLine.includes('oven') || lowerLine.includes('อบ') || lowerLine.includes('ไฟบนล่าง')) {
+      const match = line.match(/(\d+)\s*(?:-|–|to|ถึง|or)?\s*(\d+)?\s*(?:นาที|min|minute|mins|minutes)/i);
+      if (match) {
+        const minT = match[1];
+        const maxT = match[2];
+        detectedBakeTime = maxT ? round1((parseFloat(minT) + parseFloat(maxT)) / 2) : parseFloat(minT);
+        rawBakeString = maxT ? `${minT}-${maxT}` : minT;
+        break;
+      }
+    }
+  }
 
-const notes=[];
-const normalized=text.replace(/\r/g,'');
+  // ตัวเลือกสำรอง หากหาบรรทัดเตาอบไม่เจอเลย ค่อยดึงระยะเวลาแรกที่เจอ
+  if (!detectedBakeTime) {
+    const fallbackMatch = text.match(/(\d+)\s*(?:-|–|to|ถึง|or)?\s*(\d+)?\s*(?:นาที|min|minute|mins|minutes)/i);
+    if (fallbackMatch) {
+      const minT = fallbackMatch[1];
+      const maxT = fallbackMatch[2];
+      detectedBakeTime = maxT ? round1((parseFloat(minT) + parseFloat(maxT)) / 2) : parseFloat(minT);
+      rawBakeString = maxT ? `${minT}-${maxT}` : minT;
+    }
+  }
 
-// Oven
-let oven=null;
-const temp=normalized.match(/(\d{3})\s*°?\s*([CF])/i);
-if(temp){
- let t=parseInt(temp[1],10);
- if(temp[2].toUpperCase()=="F") t=Math.round((t-32)*5/9);
- oven=t;
- recipeOvenTempC=t;
- notes.push(`🔥 Oven Temp: ${t}°C`);
-}
+  if (detectedBakeTime) {
+    document.getElementById('origBakeTime').value = detectedBakeTime;
+    localNotes.push(`⏱️ Bake Time: ${rawBakeString} mins`);
+  }
 
-// helper
-function extractNearby(keywordRegex,timeRegex,max=120){
- const r=new RegExp(keywordRegex.source+"[\\s\\S]{0,"+max+"}?"+timeRegex.source,"i");
- return normalized.match(r);
-}
+  // 3. ตรวจจับการพักแป้งโดว์ / แช่ตู้เย็น (Chilling / Resting)
+  let detectedChilling = null;
+  for (let line of lines) {
+    const lowerLine = line.toLowerCase();
+    if (lowerLine.includes('chill') || lowerLine.includes('rest') || lowerLine.includes('แช่') || lowerLine.includes('พัก')) {
+      const match = line.match(/(\d+)\s*(?:-|–|to|ถึง)?\s*(\d+)?\s*(?:ชม|ชั่วโมง|ช.ม.|hour|hours|hr|hrs|นาที|min|mins|minutes)/i);
+      if (match) {
+        const isMin = match[0].includes('นาที') || match[0].includes('min');
+        detectedChilling = `~${match[1]}${match[2] ? '-' + match[2] : ''} ${isMin ? 'mins' : 'hours'}`;
+        break;
+      } else if (lowerLine.includes('overnight') || lowerLine.includes('ค้างคืน')) {
+        detectedChilling = 'Overnight';
+        break;
+      }
+    }
+  }
 
-const timePart=/(?:about|around|approximately|approx\.?\s*)?(\d+)\s*(?:-|–|to)?\s*(\d+)?\s*(minutes?|mins?|min|hours?|hrs?|hr)/;
+  if (detectedChilling) {
+    localNotes.push(`❄️ Chilling: ${detectedChilling}`);
+  }
 
-// Bake
-let bake=extractNearby(/\b(bake|baking|baked)\b/,timePart,120);
-if(!bake) bake=extractNearby(/preheated?\s+oven/,timePart,120);
+  // 4. เทคนิคอื่นๆ (เคาะถาดคุ้กกี้)
+  if(text.match(/(?:เคาะ|กระแทก|tap|bang)/i)) {
+    localNotes.push(`💥 Note: Pan-tapping or tray-banging suggested`);
+  }
 
-if(bake){
- const a=parseFloat(bake[2]);
- const b=bake[3]?parseFloat(bake[3]):null;
- const avg=b?(a+b)/2:a;
- document.getElementById('origBakeTime').value=Math.round(avg*10)/10;
- notes.push(`⏱️ Bake Time: ${b?`${a}-${b}`:a} ${bake[4]}`);
-}
+  // 5. สแกนแกะข้อมูลวัตถุดิบ (สแกนทีละบรรทัดที่มีโครงสร้าง ตัวเลข + หน่วย)
+  let loadedCount = 0;
+  let newIngredients = [];
 
-// Chill
-let chill=extractNearby(/\b(chill|refrigerate|rest|freeze)\b/,timePart,120);
-if(chill){
- notes.push(`❄️ Chilling: ${chill[2]}${chill[3]?'-'+chill[3]:''} ${chill[4]}`);
-}else if(/overnight/i.test(normalized)){
- notes.push("❄️ Chilling: Overnight");
-}
+  lines.forEach(line => {
+    const cleanLine = line.trim();
+    if(!cleanLine) return;
+    
+    const match = cleanLine.match(/^([\d\/\s\-\.]+)\s*(g|grams|กรัม|cup|cups|ถ้วย|tbsp|ช้อนโต๊ะ|tsp|ช้อนชา|egg|eggs|ฟอง)\s+(.+)$/i);
+    if(match){
+      const amtStr = match[1].trim();
+      const unitStr = match[2].toLowerCase().trim();
+      let nameStr = match[3].trim();
+      
+      let finalUnit = 'g';
+      if(unitStr.includes('cup') || unitStr.includes('ถ้วย')) finalUnit = 'cup';
+      else if(unitStr.includes('tbsp') || unitStr.includes('ช้อนโต๊ะ')) finalUnit = 'tbsp';
+      else if(unitStr.includes('tsp') || unitStr.includes('ช้อนชา')) finalUnit = 'tsp';
+      else if(unitStr.includes('egg') || unitStr.includes('ฟอง')) finalUnit = 'egg';
 
-if(/\b(tap|bang)\b|เคาะ|กระแทก/i.test(normalized))
- notes.push("💥 Note: Pan-tapping suggested");
+      newIngredients.push({
+        id: uid(), name: nameStr, category: detectCategory(nameStr) || 'Other / Custom',
+        amount: amtStr, unit: finalUnit, customGpc:'', eggSize:'Large (L, ~50g)', sugarReduction:0
+      });
+      loadedCount++;
+    }
+  });
 
-// ingredients
-let newIngredients=[];
-normalized.split("\n").forEach(line=>{
- const m=line.trim().match(/^([\d\/\s\.-]+)\s*(g|grams?|kg|cups?|cup|tbsp|tsp|eggs?|egg|ฟอง|กรัม|ถ้วย|ช้อนโต๊ะ|ช้อนชา)\s+(.+)$/i);
- if(!m) return;
- let u='g';
- const s=m[2].toLowerCase();
- if(s.includes('cup')||s.includes('ถ้วย'))u='cup';
- else if(s.includes('tbsp')||s.includes('ช้อนโต๊ะ'))u='tbsp';
- else if(s.includes('tsp')||s.includes('ช้อนชา'))u='tsp';
- else if(s.includes('egg')||s.includes('ฟอง'))u='egg';
- else if(s.includes('kg'))u='kg';
- newIngredients.push({
-  id:uid(),
-  name:m[3].trim(),
-  category:detectCategory(m[3])||'Other / Custom',
-  amount:m[1].trim(),
-  unit:u,
-  customGpc:'',
-  eggSize:'Large (L, ~50g)',
-  sugarReduction:0
- });
-});
+  if(newIngredients.length > 0) {
+    ingredients = newIngredients;
+    scaleMode = 'pct'; scalePct = 100; overrideRowId = null;
+    renderRows();
+    renderResults();
+  }
 
-if(newIngredients.length){
- ingredients=newIngredients;
- scaleMode='pct';
- scalePct=100;
- overrideRowId=null;
- renderRows();
- renderResults();
-}
+  if(localNotes.length > 0) {
+    document.getElementById('notesBox').value = localNotes.join('\n');
+  }
 
-document.getElementById('notesBox').value=notes.join("\n");
-statusEl.textContent=`วิเคราะห์สูตรสำเร็จ (${newIngredients.length} ingredients)`;
-statusEl.className='status-msg ok';
-updateBakeTimeEstimate();
-
+  statusEl.textContent = `วิเคราะห์ดึงข้อมูลสำเร็จ! ได้วัตถุดิบ ${loadedCount} รายการ และสรุปโน้ตเรียบร้อยแล้วค่ะ`;
+  statusEl.className='status-msg ok';
+  updateBakeTimeEstimate();
 });
 
 function currentRecipeData(){
   return {
+    recipeUrl: document.getElementById('recipeUrl') ? document.getElementById('recipeUrl').value : '',
     ingredients: ingredients.map(({id,...rest})=>rest),
     notes: document.getElementById('notesBox').value,
     ovenTempC: recipeOvenTempC,
@@ -847,6 +881,7 @@ async function refreshSavedList(){
       loadBtn.className='btn secondary small'; loadBtn.textContent='Open';
       loadBtn.onclick=()=>{
         ingredients = (data.ingredients||[]).map(ing=>Object.assign({id:uid()}, ing));
+        if(document.getElementById('recipeUrl')) document.getElementById('recipeUrl').value = data.recipeUrl || '';
         document.getElementById('notesBox').value = data.notes || '';
         recipeOvenTempC = (typeof data.ovenTempC === 'number') ? data.ovenTempC : null;
         document.getElementById('origBakeTime').value = data.origBakeTime || '';
@@ -897,34 +932,17 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
 document.getElementById('addRowBtn').onclick = function(){ addRow(); };
 
 
-// =========================
-// Clear Everything
-// =========================
-document.getElementById("clearBtn").addEventListener("click", function () {
-
-    document.getElementById("pasteBox").value = "";
-    document.getElementById("notesBox").value = "";
-    document.getElementById("extractStatus").textContent = "";
-
-    document.getElementById("origBakeTime").value = "";
-    document.getElementById("origPieceWeight").value = "";
-
-    recipeOvenTempC = null;
-
-    ingredients = [];
-    overrideRowId = null;
-    rowOverrides = {};
-    totalTargetGrams = null;
-    scalePct = 100;
-    scaleMode = "pct";
-
-    renderRows();
-    renderResults();
-    renderPills();
-    updateBakeTimeEstimate();
-
+document.getElementById("clearBtn").addEventListener("click",function(){
+if(document.getElementById("recipeUrl")) document.getElementById("recipeUrl").value="";
+document.getElementById("pasteBox").value="";
+document.getElementById("notesBox").value="";
+document.getElementById("extractStatus").textContent="";
+document.getElementById("origBakeTime").value="";
+document.getElementById("origPieceWeight").value="";
+recipeOvenTempC=null;
+ingredients=[];overrideRowId=null;rowOverrides={};totalTargetGrams=null;scalePct=100;scaleMode="pct";
+renderRows();renderResults();renderPills();updateBakeTimeEstimate();
 });
-
 
 // ---------- Initializing layout presets... ----------
 addRow({name:'All-purpose flour', category:'All-purpose flour', amount:300, unit:'g'});
