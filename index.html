@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Recipe Scaler — Baking Calculator</title>
 <style>
-  :root{
+  :root {
     --paper: #F1ECE0;
     --paper-line: #DCD3BF;
     --ink: #362B22;
@@ -18,155 +18,156 @@
     --mono: 'SF Mono', 'Consolas', 'Menlo', monospace;
     --sans: -apple-system, 'Segoe UI', Roboto, sans-serif;
   }
-  *{box-sizing:border-box;}
-  body{
-    margin:0;
+  * { box-sizing: border-box; }
+  
+  body {
+    margin: 0;
     background:
       radial-gradient(circle at 1px 1px, var(--paper-line) 1px, transparent 1px) 0 0/22px 22px,
       var(--paper);
-    color:var(--ink);
+    color: var(--ink);
     font-family: Georgia, 'Times New Roman', serif;
     padding: 28px 14px 80px;
   }
-  .wrap{max-width:840px;margin:0 auto;}
-  header{margin-bottom:24px;}
-  .eyebrow{
-    font-family:var(--sans); font-size:11px; letter-spacing:.18em; text-transform:uppercase;
-    color:var(--accent-deep); font-weight:700; margin-bottom:8px;
+  .wrap { max-width: 840px; margin: 0 auto; }
+  header { margin-bottom: 24px; }
+  .eyebrow {
+    font-family: var(--sans); font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--accent-deep); font-weight: 700; margin-bottom: 8px;
   }
-  h1{font-size:30px; margin:0 0 6px; letter-spacing:-.01em; line-height:1.15;}
-  .sub{font-family:var(--sans); color:var(--ink-soft); font-size:14px; max-width:64ch; line-height:1.55;}
+  h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -.01em; line-height: 1.15; }
+  .sub { font-family: var(--sans); color: var(--ink-soft); font-size: 14px; max-width: 64ch; line-height: 1.55; }
 
-  .card{
-    background:var(--card); border:1px solid var(--paper-line); border-radius:4px;
-    padding:18px 16px; margin-bottom:18px; box-shadow: 0 1px 0 rgba(54,43,34,0.03);
+  .card {
+    background: var(--card); border: 1px solid var(--paper-line); border-radius: 4px;
+    padding: 18px 16px; margin-bottom: 18px; box-shadow: 0 1px 0 rgba(54,43,34,0.03);
   }
-  .card h2{
-    font-size:12.5px; margin:0 0 4px; font-family:var(--sans);
-    text-transform:uppercase; letter-spacing:.1em; color:var(--ink-soft); font-weight:700;
+  .card h2 {
+    font-size: 12.5px; margin: 0 0 4px; font-family: var(--sans);
+    text-transform: uppercase; letter-spacing: .1em; color: var(--ink-soft); font-weight: 700;
   }
-  .card .card-note{font-family:var(--sans); font-size:12px; color:var(--ink-soft); margin-bottom:12px; line-height:1.5;}
+  .card .card-note { font-family: var(--sans); font-size: 12px; color: var(--ink-soft); margin-bottom: 12px; line-height: 1.5; }
 
-  textarea{
-    width:100%; font-family:var(--sans); font-size:14px; padding:10px;
-    border:1px solid var(--paper-line); border-radius:3px; background:#fff; color:var(--ink);
-    resize:vertical; min-height:90px;
+  textarea {
+    width: 100%; font-family: var(--sans); font-size: 14px; padding: 10px;
+    border: 1px solid var(--paper-line); border-radius: 3px; background: #fff; color: var(--ink);
+    resize: vertical; min-height: 90px;
   }
-  textarea:focus{outline:2px solid var(--accent); outline-offset:1px;}
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-  .btn{
-    font-family:var(--sans); font-size:13.5px; font-weight:600;
-    padding:9px 16px; border-radius:4px; cursor:pointer; border:1.5px solid var(--accent);
-    background:var(--accent); color:#fff;
+  .btn {
+    font-family: var(--sans); font-size: 13.5px; font-weight: 600;
+    padding: 9px 16px; border-radius: 4px; cursor: pointer; border: 1.5px solid var(--accent);
+    background: var(--accent); color: #fff;
   }
-  .btn:hover{background:var(--accent-deep); border-color:var(--accent-deep);}
-  .btn:disabled{opacity:.5; cursor:not-allowed;}
-  .btn.secondary{background:#fff; color:var(--accent-deep); border-color:var(--accent);}
-  .btn.secondary:hover{background:#eef0e6;}
-  .btn.danger{background:#fff; color:var(--rose); border-color:var(--rose);}
-  .btn.danger:hover{background:#f5e6e3;}
-  .btn.small{padding:5px 11px; font-size:12.5px;}
+  .btn:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.secondary { background: #fff; color: var(--accent-deep); border-color: var(--accent); }
+  .btn.secondary:hover { background: #eef0e6; }
+  .btn.danger { background: #fff; color: var(--rose); border-color: var(--rose); }
+  .btn.danger:hover { background: #f5e6e3; }
+  .btn.small { padding: 5px 11px; font-size: 12.5px; }
 
-  .status-msg{font-family:var(--sans); font-size:12.5px; margin-top:8px; color:var(--ink-soft);}
-  .status-msg.err{color:var(--rose);}
-  .status-msg.ok{color:var(--accent-deep);}
+  .status-msg { font-family: var(--sans); font-size: 12.5px; margin-top: 8px; color: var(--ink-soft); }
+  .status-msg.err { color: var(--rose); }
+  .status-msg.ok { color: var(--accent-deep); }
 
-  .ing-card{
-    border:1px solid var(--paper-line); border-radius:4px; background:#fff;
-    padding:12px; margin-bottom:10px;
+  .ing-card {
+    border: 1px solid var(--paper-line); border-radius: 4px; background: #fff;
+    padding: 12px; margin-bottom: 10px;
   }
-  .ing-fields{display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;}
-  .field{display:flex; flex-direction:column; gap:4px; font-family:var(--sans);}
-  .field label{font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:600;}
-  .field input, .field select{
-    font-family:var(--sans); font-size:14px; padding:7px 8px;
-    border:1px solid var(--paper-line); border-radius:3px; background:#fff; color:var(--ink);
+  .ing-fields { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 4px; font-family: var(--sans); }
+  .field label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); font-weight: 600; }
+  .field input, .field select {
+    font-family: var(--sans); font-size: 14px; padding: 7px 8px;
+    border: 1px solid var(--paper-line); border-radius: 3px; background: #fff; color: var(--ink);
   }
-  .field input:focus, .field select:focus{outline:2px solid var(--accent); outline-offset:1px;}
-  .field.name{flex:2 1 160px;}
-  .field.category{flex:2 1 170px;}
-  .field.amount{flex:1 1 80px;}
-  .field.amount input{text-align:right;}
-  .field.unit{flex:1 1 90px;}
-  .field.eggsize{flex:1 1 130px;}
-  .field.delete{flex:0 0 auto; align-self:flex-end;}
-  .del-btn{
-    background:none;border:none;color:var(--rose);cursor:pointer;
-    font-size:19px; line-height:1; padding:6px 8px; border-radius:3px;
+  .field input:focus, .field select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .field.name { flex: 2 1 160px; }
+  .field.category { flex: 2 1 170px; }
+  .field.amount { flex: 1 1 80px; }
+  .field.amount input { text-align: right; }
+  .field.unit { flex: 1 1 90px; }
+  .field.eggsize { flex: 1 1 130px; }
+  .field.delete { flex: 0 0 auto; align-self: flex-end; }
+  .del-btn {
+    background: none; border: none; color: var(--rose); cursor: pointer;
+    font-size: 19px; line-height: 1; padding: 6px 8px; border-radius: 3px;
   }
-  .del-btn:hover{background:#f1e0dc;}
+  .del-btn:hover { background: #f1e0dc; }
 
-  .sub-row{
-    font-size:12px; color:var(--ink-soft); margin-top:10px;
-    display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-family:var(--sans);
+  .sub-row {
+    font-size: 12px; color: var(--ink-soft); margin-top: 10px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-family: var(--sans);
   }
-  .sub-row input.gpc{width:90px; padding:4px 6px; font-size:13px;}
+  .sub-row input.gpc { width: 90px; padding: 4px 6px; font-size: 13px; }
 
-  .sugar-tag{
-    display:inline-block; font-size:10px; font-weight:700; letter-spacing:.03em;
-    color:#fff; background:var(--gold); padding:2px 7px; border-radius:10px; margin-left:6px;
+  .sugar-tag {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .03em;
+    color: #fff; background: var(--gold); padding: 2px 7px; border-radius: 10px; margin-left: 6px;
   }
-  .mini-pill{
-    font-family:var(--sans); font-size:12px; font-weight:600;
-    padding:4px 10px; border-radius:14px; border:1px solid var(--paper-line);
-    background:#fff; color:var(--ink); cursor:pointer;
+  .mini-pill {
+    font-family: var(--sans); font-size: 12px; font-weight: 600;
+    padding: 4px 10px; border-radius: 14px; border: 1px solid var(--paper-line);
+    background: #fff; color: var(--ink); cursor: pointer;
   }
-  .mini-pill.active{background:var(--gold); border-color:var(--gold); color:#fff;}
-  .mini-pill:hover:not(.active){border-color:var(--gold);}
-  .sub-row input.mini-num{width:56px; padding:4px 6px; font-size:12.5px;}
+  .mini-pill.active { background: var(--gold); border-color: var(--gold); color: #fff; }
+  .mini-pill:hover:not(.active) { border-color: var(--gold); }
+  .sub-row input.mini-num { width: 56px; padding: 4px 6px; font-size: 12.5px; }
 
-  .add-row-btn{
-    margin-top:6px; font-family:var(--sans); font-size:13.5px; font-weight:600;
-    background:none; border:1.5px dashed var(--accent); color:var(--accent-deep);
-    padding:9px 14px; border-radius:4px; cursor:pointer; width:100%;
+  .add-row-btn {
+    margin-top: 6px; font-family: var(--sans); font-size: 13.5px; font-weight: 600;
+    background: none; border: 1.5px dashed var(--accent); color: var(--accent-deep);
+    padding: 9px 14px; border-radius: 4px; cursor: pointer; width: 100%;
   }
-  .add-row-btn:hover{background:#eef0e6;}
+  .add-row-btn:hover { background: #eef0e6; }
 
-  .scale-pills{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;}
-  .pill{
-    font-family:var(--sans); font-size:13.5px; font-weight:600;
-    padding:8px 16px; border-radius:20px; border:1.5px solid var(--paper-line);
-    background:#fff; color:var(--ink); cursor:pointer;
+  .scale-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .pill {
+    font-family: var(--sans); font-size: 13.5px; font-weight: 600;
+    padding: 8px 16px; border-radius: 20px; border: 1.5px solid var(--paper-line);
+    background: #fff; color: var(--ink); cursor: pointer;
   }
-  .pill.active{background:var(--accent); border-color:var(--accent); color:#fff;}
-  .pill:hover:not(.active){border-color:var(--accent);}
-  .custom-scale{display:flex; align-items:center; gap:8px; font-family:var(--sans); font-size:13.5px; color:var(--ink-soft); flex-wrap:wrap;}
-  .custom-scale input{width:70px; padding:7px 8px; border:1px solid var(--paper-line); border-radius:3px; font-size:14px;}
-  .scale-readout{margin-top:12px; font-family:var(--mono); font-size:26px; color:var(--accent-deep); font-weight:700;}
-  .scale-readout span{font-size:13px; font-family:var(--sans); color:var(--ink-soft); font-weight:400;}
+  .pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pill:hover:not(.active) { border-color: var(--accent); }
+  .custom-scale { display: flex; align-items: center; gap: 8px; font-family: var(--sans); font-size: 13.5px; color: var(--ink-soft); flex-wrap: wrap; }
+  .custom-scale input { width: 70px; padding: 7px 8px; border: 1px solid var(--paper-line); border-radius: 3px; font-size: 14px; }
+  .scale-readout { margin-top: 12px; font-family: var(--mono); font-size: 26px; color: var(--accent-deep); font-weight: 700; }
+  .scale-readout span { font-size: 13px; font-family: var(--sans); color: var(--ink-soft); font-weight: 400; }
 
-  .weight-calc{display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; font-family:var(--sans);}
-  .weight-calc .field{display:flex; flex-direction:column; gap:4px;}
-  .weight-calc label{font-size:12px; color:var(--ink-soft);}
-  .weight-calc input{width:110px; padding:8px 9px; border:1px solid var(--paper-line); border-radius:3px; font-size:14px;}
-  .weight-calc .total-readout{font-family:var(--mono); font-size:14px; color:var(--ink-soft);}
+  .weight-calc { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; font-family: var(--sans); }
+  .weight-calc .field { display: flex; flex-direction: column; gap: 4px; }
+  .weight-calc label { font-size: 12px; color: var(--ink-soft); }
+  .weight-calc input { width: 110px; padding: 8px 9px; border: 1px solid var(--paper-line); border-radius: 3px; font-size: 14px; }
+  .weight-calc .total-readout { font-family: var(--mono); font-size: 14px; color: var(--ink-soft); }
 
-  table{width:100%; border-collapse:collapse; font-family:var(--sans);}
-  th{text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); padding:6px 6px; border-bottom:2px solid var(--ink);}
-  th.num, td.num{text-align:right;}
-  td{padding:9px 6px; border-bottom:1px solid var(--paper-line); font-size:14px; vertical-align:middle;}
-  td.orig{color:var(--ink-soft); font-family:var(--mono); font-size:13px;}
-  td.result{font-family:var(--mono); font-weight:700; color:var(--accent-deep); font-size:15.5px;}
-  .target-input{width:74px; text-align:right; font-family:var(--mono); font-size:14.5px; padding:5px 6px; border:1px solid var(--gold); border-radius:3px; background:#FEFBF3;}
-  .target-input:focus{outline:2px solid var(--gold);}
-  .total-row td{font-weight:700; border-top:2px solid var(--ink); border-bottom:none;}
-  .warn-row td{color:var(--rose); font-size:12.5px; font-family:var(--sans); font-style:italic;}
-  .empty-msg{font-family:var(--sans); color:var(--ink-soft); font-size:14px; text-align:center; padding:24px 0;}
+  table { width: 100%; border-collapse: collapse; font-family: var(--sans); }
+  th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); padding: 6px 6px; border-bottom: 2px solid var(--ink); }
+  th.num, td.num { text-align: right; }
+  td { padding: 9px 6px; border-bottom: 1px solid var(--paper-line); font-size: 14px; vertical-align: middle; }
+  td.orig { color: var(--ink-soft); font-family: var(--mono); font-size: 13px; }
+  td.result { font-family: var(--mono); font-weight: 700; color: var(--accent-deep); font-size: 15.5px; }
+  .target-input { width: 74px; text-align: right; font-family: var(--mono); font-size: 14.5px; padding: 5px 6px; border: 1px solid var(--gold); border-radius: 3px; background: #FEFBF3; }
+  .target-input:focus { outline: 2px solid var(--gold); }
+  .total-row td { font-weight: 700; border-top: 2px solid var(--ink); border-bottom: none; }
+  .warn-row td { color: var(--rose); font-size: 12.5px; font-family: var(--sans); font-style: italic; }
+  .empty-msg { font-family: var(--sans); color: var(--ink-soft); font-size: 14px; text-align: center; padding: 24px 0; }
 
-  .saved-list{display:flex; flex-direction:column; gap:8px;}
-  .saved-item{
-    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
-    font-family:var(--sans); font-size:13px; padding:9px 12px;
-    background:#fff; border:1px solid var(--paper-line); border-radius:4px;
+  .saved-list { display: flex; flex-direction: column; gap: 8px; }
+  .saved-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    font-family: var(--sans); font-size: 13px; padding: 9px 12px;
+    background: #fff; border: 1px solid var(--paper-line); border-radius: 4px;
   }
-  .saved-item .meta{color:var(--ink-soft); font-size:12px;}
-  .saved-actions{display:flex; gap:6px;}
+  .saved-item .meta { color: var(--ink-soft); font-size: 12px; }
+  .saved-actions { display: flex; gap: 6px; }
 
-  footer{text-align:center; font-family:var(--sans); font-size:11.5px; color:var(--ink-soft); margin-top:22px; line-height:1.7;}
+  footer { text-align: center; font-family: var(--sans); font-size: 11.5px; color: var(--ink-soft); margin-top: 22px; line-height: 1.7; }
 
   @media (max-width:480px){
-    h1{font-size:26px;}
-    .field.name, .field.category{flex-basis:100%;}
+    h1 { font-size: 26px; }
+    .field.name, .field.category { flex-basis: 100%; }
   }
 </style>
 </head>
@@ -261,7 +262,6 @@
 </div>
 
 <script>
-// ---------- มั่นใจว่าระบบบันทึกจะไม่แครชด้วยตัวแปลงสากล ----------
 const safeStorage = {
   async set(key, val) {
     try { if(window.storage && window.storage.set) { await window.storage.set(key, val, false); return; } } catch(e){}
@@ -701,7 +701,6 @@ function renderResults(){
   renderPills();
 }
 
-// ---------- เปลี่ยนตัวสกัดอัตโนมัติให้ทำงานแบบออฟไลน์ 100% ไม่พึ่งพา API ต่างประเทศ ----------
 document.getElementById('extractBtn').addEventListener('click', function(){
   const text = document.getElementById('pasteBox').value.trim();
   const statusEl = document.getElementById('extractStatus');
@@ -712,7 +711,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
   let localNotes = [];
   
-  // 1. ตรวจจับอุณหภูมิ (ไฟอบ)
+  // 1. ตรวจจับอุณหภูมิ (ไฟอบ) - เช่น 175C, 180 องศา, 350F
   const tempMatch = text.match(/(\d{3})\s*(?:°|องศา|C|F)/i);
   if(tempMatch) {
     let temp = parseInt(tempMatch[1], 10);
@@ -723,8 +722,8 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     localNotes.push(`🔥 Oven Temp: ${temp}°C`);
   }
 
-  // 2. ตรวจจับเวลาอบ
-  const timeMatch = text.match(/(\d+)\s*(?:-|–|ถึง)?\s*(\d+)?\s*(?:นาที|min|minute|mins)/i);
+  // 2. ตรวจจับเวลาอบแบบยืดหยุ่น เช่น "12 to 13 minutes", "12-13 นาที"
+  const timeMatch = text.match(/(\d+)\s*(?:-|–|to|ถึง)?\s*(\d+)?\s*(?:นาที|min|minute|mins)/i);
   if(timeMatch) {
     const minT = timeMatch[1];
     const maxT = timeMatch[2];
@@ -733,20 +732,20 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     localNotes.push(`⏱️ Bake Time: ${maxT ? minT+'-'+maxT : minT} mins`);
   }
 
-  // 3. ตรวจจับการแช่ตู้เย็น / พักโดว์
-  const chillMatch = text.match(/(?:แช่|chill|rest|ตู้เย็น)[^\n]{0,30}(\d+)\s*(?:ชม|ชั่วโมง|ช.ม.|hour|hours|hr|hrs|นาที|min)/i);
+  // 3. ตรวจจับการแช่ตู้เย็น / พักโดว์ (Chilling / Resting)
+  const chillMatch = text.match(/(?:แช่|chill|rest|ตู้เย็น)[^\n]{0,30?}(\d+)\s*(?:ชม|ชั่วโมง|ช.ม.|hour|hours|hr|hrs|นาที|min)/i) || text.match(/(\d+)\s*(?:ชม|ชั่วโมง|hour|hours|hr|hrs).*?(?:แช่|chill|rest)/i);
   if(chillMatch) {
     localNotes.push(`❄️ Chilling: ~${chillMatch[1]} ${chillMatch[0].includes('นาที') || chillMatch[0].includes('min') ? 'mins':'hours'}`);
   } else if (text.match(/(?:ค้างคืน|overnight)/i)) {
     localNotes.push(`❄️ Chilling: Overnight`);
   }
 
-  // 4. เทคนิคอื่นๆ (เช่น เคาะถาด)
+  // 4. เทคนิคอื่นๆ (เคาะถาดคุ้กกี้)
   if(text.match(/(?:เคาะ|กระแทก|tap|bang)/i)) {
-    localNotes.push(`💥 Note: Pan-tapping mentioned`);
+    localNotes.push(`💥 Note: Pan-tapping or tray-banging suggested`);
   }
 
-  // 5. ค้นหาแถวส่วนผสมแบบอัจฉริยะ (บรรทัดที่มี ตัวเลข + หน่วยวัด)
+  // 5. สแกนแกะข้อมูลวัตถุดิบ (สแกนทีละบรรทัดที่มีโครงสร้าง ตัวเลข + หน่วย)
   const lines = text.split('\n');
   let loadedCount = 0;
   let newIngredients = [];
@@ -755,7 +754,6 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     const cleanLine = line.trim();
     if(!cleanLine) return;
     
-    // ค้นหาแพทเทิร์น ตัวเลข + หน่วยยอดฮิต
     const match = cleanLine.match(/^([\d\/\s\-\.]+)\s*(g|grams|กรัม|cup|cups|ถ้วย|tbsp|ช้อนโต๊ะ|tsp|ช้อนชา|egg|eggs|ฟอง)\s+(.+)$/i);
     if(match){
       const amtStr = match[1].trim();
@@ -787,7 +785,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     document.getElementById('notesBox').value = localNotes.join('\n');
   }
 
-  statusEl.textContent = `วิเคราะห์และดึงวัตถุดิบเข้ามาได้ ${loadedCount} รายการเรียบร้อยค่ะ!`;
+  statusEl.textContent = `วิเคราะห์ดึงข้อมูลสำเร็จ! ได้วัตถุดิบ ${loadedCount} รายการ และประมวลโน้ตสรุปเรียบร้อยแล้วค่ะ`;
   statusEl.className='status-msg ok';
   updateBakeTimeEstimate();
 });
@@ -879,7 +877,6 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   }
 });
 
-// ---------- init ----------
 document.getElementById('addRowBtn').onclick = function(){ addRow(); };
 
 addRow({name:'All-purpose flour', category:'All-purpose flour', amount:300, unit:'g'});
