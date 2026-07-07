@@ -28,13 +28,18 @@
       await set(ref(db, path), JSON.parse(val));
     },
     async listPrefix() {
-      // ดึงข้อมูลทั้งหมดจาก 'recipe'
+      // ดึงข้อมูลทั้งหมดใน 'recipe'
       const snapshot = await get(ref(db, 'recipe'));
       if (!snapshot.exists()) return [];
       
       const data = snapshot.val();
-      // ข้อมูลมีรหัสแปลกๆ (เช่น -OT...) นำหน้า เราจะดึงทุกคีย์ออกมา
-      return Object.keys(data).map(k => 'recipe:' + k);
+      const keys = [];
+      
+      // วนลูปเพื่อเก็บรหัสแปลกๆ นั้นไว้ เพื่อให้ระบบเรียกข้อมูลได้
+      for (let id in data) {
+        keys.push('recipe:' + id);
+      }
+      return keys;
     },
     async get(key) {
       const path = key.replace(/:/g, '/');
