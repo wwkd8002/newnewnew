@@ -19,7 +19,6 @@
     --sans: -apple-system, 'Segoe UI', Roboto, sans-serif;
   }
   * { box-sizing: border-box; }
-  
   body {
     margin: 0;
     background:
@@ -262,6 +261,7 @@
 </div>
 
 <script>
+// ---------- STREAMING_CHUNK: Implementing unified browser storage interface... ----------
 const safeStorage = {
   async set(key, val) {
     try { if(window.storage && window.storage.set) { await window.storage.set(key, val, false); return; } } catch(e){}
@@ -315,7 +315,8 @@ function uid(){ return 'r'+Math.random().toString(36).slice(2,9); }
 function isSugarRow(row){ return SUGAR_CATEGORIES.includes(row.category); }
 function round1(n){ return Math.round(n*10)/10; }
 
-function parseAmount(str){
+// ---------- STREAMING_CHUNK: Constructing mathematical amount interpreters... ----------
+function parseAmount(str) {
   if(str==null) return NaN;
   str = String(str).trim();
   if(str==='') return NaN;
@@ -415,6 +416,7 @@ function effectiveOrig(row, orig){
   return orig;
 }
 
+// ---------- STREAMING_CHUNK: Managing dynamically generated rows... ----------
 function renderRows(){
   const box = document.getElementById('rows');
   box.innerHTML = '';
@@ -563,6 +565,7 @@ function renderPills(){
   });
 }
 
+// ---------- STREAMING_CHUNK: Computing proportional scaling outputs... ----------
 document.getElementById('customPct').addEventListener('input', e=>{
   const v = parseFloat(e.target.value);
   if(!isNaN(v) && v>0){
@@ -609,6 +612,7 @@ function GrandmaScale(){
   renderResults();
 }
 
+// ---------- STREAMING_CHUNK: Formatting scale output rows... ----------
 function renderResults(){
   const body = document.getElementById('resultsBody');
   body.innerHTML='';
@@ -701,6 +705,7 @@ function renderResults(){
   renderPills();
 }
 
+// ---------- STREAMING_CHUNK: Fine-tuning intelligent offline parser algorithms... ----------
 document.getElementById('extractBtn').addEventListener('click', function(){
   const text = document.getElementById('pasteBox').value.trim();
   const statusEl = document.getElementById('extractStatus');
@@ -710,6 +715,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
   statusEl.className='status-msg';
 
   let localNotes = [];
+  const lines = text.split('\n');
   
   // 1. ตรวจจับอุณหภูมิ (ไฟอบ) - เช่น 175C, 180 องศา, 350F
   const tempMatch = text.match(/(\d{3})\s*(?:°|องศา|C|F)/i);
@@ -722,22 +728,59 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     localNotes.push(`🔥 Oven Temp: ${temp}°C`);
   }
 
-  // 2. ตรวจจับเวลาอบแบบยืดหยุ่น เช่น "12 to 13 minutes", "12-13 นาที"
-  const timeMatch = text.match(/(\d+)\s*(?:-|–|to|ถึง)?\s*(\d+)?\s*(?:นาที|min|minute|mins)/i);
-  if(timeMatch) {
-    const minT = timeMatch[1];
-    const maxT = timeMatch[2];
-    const avgTime = maxT ? round1((parseFloat(minT)+parseFloat(maxT))/2) : parseFloat(minT);
-    document.getElementById('origBakeTime').value = avgTime;
-    localNotes.push(`⏱️ Bake Time: ${maxT ? minT+'-'+maxT : minT} mins`);
+  // 2. ตรวจจับเวลาอบแบบชาญฉลาด (สแกนหาบรรทัดที่มีคีย์เวิร์ดอบ เตา เพื่อข้ามคีย์เวิร์ดพัก/ตีเนย)
+  let detectedBakeTime = null;
+  let rawBakeString = "";
+  for (let line of lines) {
+    const lowerLine = line.toLowerCase();
+    // ถ้าบรรทัดนี้พูดถึงการอบ (Bake, Baking, Oven, อบ, คุกกี้)
+    if (lowerLine.includes('bake') || lowerLine.includes('baking') || lowerLine.includes('oven') || lowerLine.includes('อบ') || lowerLine.includes('ไฟบนล่าง')) {
+      const match = line.match(/(\d+)\s*(?:-|–|to|ถึง|or)?\s*(\d+)?\s*(?:นาที|min|minute|mins|minutes)/i);
+      if (match) {
+        const minT = match[1];
+        const maxT = match[2];
+        detectedBakeTime = maxT ? round1((parseFloat(minT) + parseFloat(maxT)) / 2) : parseFloat(minT);
+        rawBakeString = maxT ? `${minT}-${maxT}` : minT;
+        break;
+      }
+    }
   }
 
-  // 3. ตรวจจับการแช่ตู้เย็น / พักโดว์ (Chilling / Resting)
-  const chillMatch = text.match(/(?:แช่|chill|rest|ตู้เย็น)[^\n]{0,30?}(\d+)\s*(?:ชม|ชั่วโมง|ช.ม.|hour|hours|hr|hrs|นาที|min)/i) || text.match(/(\d+)\s*(?:ชม|ชั่วโมง|hour|hours|hr|hrs).*?(?:แช่|chill|rest)/i);
-  if(chillMatch) {
-    localNotes.push(`❄️ Chilling: ~${chillMatch[1]} ${chillMatch[0].includes('นาที') || chillMatch[0].includes('min') ? 'mins':'hours'}`);
-  } else if (text.match(/(?:ค้างคืน|overnight)/i)) {
-    localNotes.push(`❄️ Chilling: Overnight`);
+  // ตัวเลือกสำรอง หากหาบรรทัดเตาอบไม่เจอเลย ค่อยดึงระยะเวลาแรกที่เจอ
+  if (!detectedBakeTime) {
+    const fallbackMatch = text.match(/(\d+)\s*(?:-|–|to|ถึง|or)?\s*(\d+)?\s*(?:นาที|min|minute|mins|minutes)/i);
+    if (fallbackMatch) {
+      const minT = fallbackMatch[1];
+      const maxT = fallbackMatch[2];
+      detectedBakeTime = maxT ? round1((parseFloat(minT) + parseFloat(maxT)) / 2) : parseFloat(minT);
+      rawBakeString = maxT ? `${minT}-${maxT}` : minT;
+    }
+  }
+
+  if (detectedBakeTime) {
+    document.getElementById('origBakeTime').value = detectedBakeTime;
+    localNotes.push(`⏱️ Bake Time: ${rawBakeString} mins`);
+  }
+
+  // 3. ตรวจจับการพักแป้งโดว์ / แช่ตู้เย็น (Chilling / Resting)
+  let detectedChilling = null;
+  for (let line of lines) {
+    const lowerLine = line.toLowerCase();
+    if (lowerLine.includes('chill') || lowerLine.includes('rest') || lowerLine.includes('แช่') || lowerLine.includes('พัก')) {
+      const match = line.match(/(\d+)\s*(?:-|–|to|ถึง)?\s*(\d+)?\s*(?:ชม|ชั่วโมง|ช.ม.|hour|hours|hr|hrs|นาที|min|mins|minutes)/i);
+      if (match) {
+        const isMin = match[0].includes('นาที') || match[0].includes('min');
+        detectedChilling = `~${match[1]}${match[2] ? '-' + match[2] : ''} ${isMin ? 'mins' : 'hours'}`;
+        break;
+      } else if (lowerLine.includes('overnight') || lowerLine.includes('ค้างคืน')) {
+        detectedChilling = 'Overnight';
+        break;
+      }
+    }
+  }
+
+  if (detectedChilling) {
+    localNotes.push(`❄️ Chilling: ${detectedChilling}`);
   }
 
   // 4. เทคนิคอื่นๆ (เคาะถาดคุ้กกี้)
@@ -746,7 +789,6 @@ document.getElementById('extractBtn').addEventListener('click', function(){
   }
 
   // 5. สแกนแกะข้อมูลวัตถุดิบ (สแกนทีละบรรทัดที่มีโครงสร้าง ตัวเลข + หน่วย)
-  const lines = text.split('\n');
   let loadedCount = 0;
   let newIngredients = [];
 
@@ -785,7 +827,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     document.getElementById('notesBox').value = localNotes.join('\n');
   }
 
-  statusEl.textContent = `วิเคราะห์ดึงข้อมูลสำเร็จ! ได้วัตถุดิบ ${loadedCount} รายการ และประมวลโน้ตสรุปเรียบร้อยแล้วค่ะ`;
+  statusEl.textContent = `วิเคราะห์ดึงข้อมูลสำเร็จ! ได้วัตถุดิบ ${loadedCount} รายการ และสรุปโน้ตเรียบร้อยแล้วค่ะ`;
   statusEl.className='status-msg ok';
   updateBakeTimeEstimate();
 });
@@ -801,6 +843,7 @@ function currentRecipeData(){
   };
 }
 
+// ---------- STREAMING_CHUNK: Managing saved list components... ----------
 async function refreshSavedList(){
   const listEl = document.getElementById('savedList');
   if(!listEl) return;
@@ -879,6 +922,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
 
 document.getElementById('addRowBtn').onclick = function(){ addRow(); };
 
+// ---------- Initializing layout presets... ----------
 addRow({name:'All-purpose flour', category:'All-purpose flour', amount:300, unit:'g'});
 addRow({name:'Butter', category:'Butter', amount:227, unit:'g'});
 addRow({name:'Granulated sugar', category:'Granulated sugar', amount:200, unit:'g'});
