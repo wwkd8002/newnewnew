@@ -223,6 +223,8 @@
     .sidebar{width:100%;position:static}
   }
 
+
+textarea{overflow:hidden;}
 </style>
 </head>
 <body>
@@ -652,6 +654,7 @@ function updateTotalReadout(){
   const pw = parseFloat(document.getElementById('pieceWeight').value)||0;
   document.getElementById('totalReadout').textContent = `Target total = ${round1(pc*pw)} g`;
   updateBakeTimeEstimate();
+        autoResizeAllTextareas();
 }
 document.getElementById('pieceCount').addEventListener('input', updateTotalReadout);
 document.getElementById('pieceWeight').addEventListener('input', updateTotalReadout);
@@ -883,6 +886,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     ingredients = newIngredients;
     renderRows();
     renderResults();
+    autoResizeAllTextareas();
   }
 
   statusEl.textContent = `วิเคราะห์สำเร็จ! ได้วัตถุดิบ ${loadedCount} รายการ`;
@@ -1007,6 +1011,20 @@ editingKey=null;document.getElementById('saveChangesBtn').style.display='none';i
 renderRows();renderResults();renderPills();updateBakeTimeEstimate();
 });
 
+
+function autoResizeTextarea(el){
+ if(!el) return;
+ el.style.height='auto';
+ el.style.height=Math.max(el.scrollHeight,90)+'px';
+}
+function autoResizeAllTextareas(){
+ document.querySelectorAll('textarea').forEach(autoResizeTextarea);
+}
+document.addEventListener('input',e=>{
+ if(e.target&&e.target.tagName==='TEXTAREA') autoResizeTextarea(e.target);
+});
+
+autoResizeAllTextareas();
 addRow({name:'All-purpose flour', category:'All-purpose flour', amount:300, unit:'g'});
 addRow({name:'Butter', category:'Butter', amount:227, unit:'g'});
 addRow({name:'Granulated sugar', category:'Granulated sugar', amount:200, unit:'g'});
