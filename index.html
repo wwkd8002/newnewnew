@@ -791,34 +791,57 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     let cleanLine = line.trim().replace(/^[\u25A0-\u25FF\*\-\+\s•▢]+/g, '').trim();
     if(!cleanLine) return;
 
-    // Regex ใหม่: รองรับทั้ง [เลข] [หน่วย] [ชื่อ] และกรณีมีวงเล็บกรัม
+    // Regex: รองรับทั้ง [เลข] [หน่วย] [ชื่อ] และกรณีมีวงเล็บกรัม
     const regex = /^([\d\/\.\s]+)\s*(grams?|g|กรัม|oz|ounces?|ounce|ml|milliliters?|cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา|eggs?|egg|ฟอง)?\s*(.*)$/i;
-    
-    // ตรวจสอบวงเล็บกรัมก่อน (Case 1: มี (293 g) ต่อท้าย)
-    const gramInParen = cleanLine.match(/\(([\d\.]+)\s*(?:g|grams?|กรัม)\)/i);
-    
-    let amt = null, unit = 'g', name = cleanLine;
 
-    if (gramInParen) {
-        amt = parseFloat(gramInParen[1]);
-        unit = 'g';
-        // พยายามตัดส่วนที่เป็นวงเล็บออกเพื่อหาชื่อ
-        name = cleanLine.replace(/\([\d\.]+\s*(?:g|grams?|กรัม)\)/i, '').trim();
-    } else {
-        const match = cleanLine.match(regex);
-        if (match) {
-            amt = parseAmount(match[1]); 
-            unit = match[2] ? match[2].toLowerCase() : 'g';
-            name = match[3] ? match[3].trim() : (match[2] ? '' : match[1]); 
+    // ★ แก้ไข: ถ้าต้นฉบับระบุหน่วยเป็น tsp/tbsp/cup/ml/egg/oz อย่างชัดเจน (นอกวงเล็บ)
+    // ให้ยึดค่านั้นเป็นหลักเสมอ ห้ามแปลงเป็นกรัมจากตัวเลขในวงเล็บที่แนบมาด้วย
+    // เช่น "3/4 teaspoon (3 g) baking soda" ต้องอ่านเป็น 0.75 tsp ไม่ใช่ 3 g
+    const noParenLine = cleanLine.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+
+    let amt = null, unit = 'g', name = cleanLine;
+    let matchedExplicitUnit = false;
+
+    const mainMatch = noParenLine.match(regex);
+    if (mainMatch && mainMatch[2]) {
+        const mainAmt = parseAmount(mainMatch[1]);
+        if (!isNaN(mainAmt)) {
+            amt = mainAmt;
+            unit = mainMatch[2].toLowerCase();
+            name = mainMatch[3] ? mainMatch[3].trim() : '';
+            matchedExplicitUnit = true;
+        }
+    }
+
+    if (!matchedExplicitUnit) {
+        // ตรวจสอบวงเล็บกรัม (Case: มี (293 g) ต่อท้าย) เฉพาะตอนที่ไม่มีหน่วยชัดเจนอื่นแล้วเท่านั้น
+        const gramInParen = cleanLine.match(/\(([\d\.]+)\s*(?:g|grams?|กรัม)\)/i);
+
+        if (gramInParen) {
+            amt = parseFloat(gramInParen[1]);
+            unit = 'g';
+            // พยายามตัดส่วนที่เป็นวงเล็บออกเพื่อหาชื่อ
+            name = cleanLine.replace(/\([\d\.]+\s*(?:g|grams?|กรัม)\)/i, '').trim();
+        } else {
+            const match = cleanLine.match(regex);
+            if (match) {
+                amt = parseAmount(match[1]); 
+                unit = match[2] ? match[2].toLowerCase() : 'g';
+                name = match[3] ? match[3].trim() : (match[2] ? '' : match[1]); 
+            }
         }
     }
 
     if (amt !== null && !isNaN(amt)) {
         let finalUnit = 'g';
+        // ★ แก้ไข: เดิม unit ที่ parse ได้อาจเป็นคำเต็ม เช่น "teaspoon", "tablespoon"
+        // ซึ่งไม่มีคำว่า "tsp"/"tbsp" อยู่ในตัวเอง ทำให้เงื่อนไขเดิม (.includes('tsp')) ไม่ match
+        // และหล่นไปเป็น 'g' โดยอัตโนมัติ นี่คือสาเหตุที่ teaspoon/tablespoon ถูกแปลงเป็นกรัม
+        // ต้องตรวจสอบคำเต็มด้วย และเช็ค tablespoon/tbsp ก่อน teaspoon/tsp เสมอ
         if (unit.includes('cup') || unit.includes('ถ้วย')) finalUnit = 'cup';
-        else if (unit.includes('tbsp') || unit.includes('ช้อนโต๊ะ')) finalUnit = 'tbsp';
-        else if (unit.includes('tsp') || unit.includes('ช้อนชา')) finalUnit = 'tsp';
-        else if (unit.includes('ml')) finalUnit = 'ml';
+        else if (unit.includes('tbsp') || unit.includes('tablespoon') || unit.includes('ช้อนโต๊ะ')) finalUnit = 'tbsp';
+        else if (unit.includes('tsp') || unit.includes('teaspoon') || unit.includes('ช้อนชา')) finalUnit = 'tsp';
+        else if (unit.includes('ml') || unit.includes('milliliter')) finalUnit = 'ml';
         else if (unit.includes('egg') || unit.includes('ฟอง')) finalUnit = 'egg';
         else if (unit.includes('oz') || unit.includes('ounce')) finalUnit = 'oz';
         else finalUnit = 'g';
