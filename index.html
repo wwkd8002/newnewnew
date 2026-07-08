@@ -303,16 +303,8 @@
       <div class="field"><label>&nbsp;</label><button class="btn" id="applyWeightBtn">Apply this scale</button></div>
       <div class="total-readout" id="totalReadout">Target total = 200 g</div>
     </div>
-
-    <div style="border-top:1px dashed var(--paper-line); margin-top:16px; padding-top:14px;">
-      <div class="card-note" style="margin-bottom:10px;">Bake time for your size (optional) — filled in automatically after extracting a recipe above, or enter it yourself.</div>
-      <div class="weight-calc">
-        <div class="field"><label>Original bake time (min)</label><input type="number" id="origBakeTime" min="1" step="any" placeholder="e.g. 13"></div>
-        <div class="field"><label>Original piece weight (g)</label><input type="number" id="origPieceWeight" min="1" step="any" placeholder="e.g. 50"></div>
-      </div>
-      <div class="total-readout" id="bakeTimeEstimate" style="margin-top:10px;"></div>
-    </div>
   </div>
+
 
   <div class="card">
     <h2>Results after scaling</h2>
@@ -663,24 +655,10 @@ function updateTotalReadout(){
 }
 document.getElementById('pieceCount').addEventListener('input', updateTotalReadout);
 document.getElementById('pieceWeight').addEventListener('input', updateTotalReadout);
-document.getElementById('origBakeTime').addEventListener('input', updateBakeTimeEstimate);
-document.getElementById('origPieceWeight').addEventListener('input', updateBakeTimeEstimate);
 
-function updateBakeTimeEstimate(){
-  const el = document.getElementById('bakeTimeEstimate');
-  const targetWeight = parseFloat(document.getElementById('pieceWeight').value);
-  const origTime = parseFloat(document.getElementById('origBakeTime').value);
-  const origWeight = parseFloat(document.getElementById('origPieceWeight').value);
 
-  if(isNaN(targetWeight) || isNaN(origTime) || isNaN(origWeight) || targetWeight<=0 || origTime<=0 || origWeight<=0){
-    el.textContent = '';
-    return;
-  }
-  const estMinutes = origTime * Math.pow(targetWeight/origWeight, 2/3);
-  const tempStr = recipeOvenTempC!=null ? ` at ${Math.round(recipeOvenTempC)}°C` : '';
-  el.innerHTML = `Estimated bake time: <strong>~${Math.round(estMinutes)} min</strong>${tempStr} for ${targetWeight}g pieces ` +
-    `<span style="color:var(--ink-soft); font-size:12px;">(original: ${origWeight}g → ${origTime} min — start checking early)</span>`;
-}
+function updateBakeTimeEstimate(){ return; }
+
 
 document.getElementById('applyWeightBtn').addEventListener('click', GrandmaScale);
 function GrandmaScale(){
@@ -918,8 +896,6 @@ function currentRecipeData(){
     ingredients: ingredients.map(({id,...rest})=>rest),
     notes: document.getElementById('notesBox').value,
     ovenTempC: recipeOvenTempC,
-    origBakeTime: document.getElementById('origBakeTime').value,
-    origPieceWeight: document.getElementById('origPieceWeight').value,
     savedAt: new Date().toISOString()
   };
 }
@@ -960,8 +936,6 @@ async function refreshSavedList(){
         document.getElementById('pasteBox').value = data.pasteText || '';
         document.getElementById('notesBox').value = data.notes || '';
         recipeOvenTempC = (typeof data.ovenTempC === 'number') ? data.ovenTempC : null;
-        document.getElementById('origBakeTime').value = data.origBakeTime || '';
-        document.getElementById('origPieceWeight').value = data.origPieceWeight || '';
         scaleMode='pct'; scalePct=100; overrideRowId=null;
         renderRows(); renderResults();
         updateBakeTimeEstimate();
@@ -1028,8 +1002,6 @@ if(document.getElementById("recipeUrl")) document.getElementById("recipeUrl").va
 document.getElementById("pasteBox").value="";
 document.getElementById("notesBox").value="";
 document.getElementById("extractStatus").textContent="";
-document.getElementById("origBakeTime").value="";
-document.getElementById("origPieceWeight").value="";
 recipeOvenTempC=null;
 editingKey=null;document.getElementById('saveChangesBtn').style.display='none';ingredients=[];overrideRowId=null;rowOverrides={};totalTargetGrams=null;scalePct=100;scaleMode="pct";
 renderRows();renderResults();renderPills();updateBakeTimeEstimate();
