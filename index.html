@@ -769,87 +769,21 @@ document.getElementById('extractBtn').addEventListener('click', function(){
   const statusEl = document.getElementById('extractStatus');
   if(!rawText){ statusEl.textContent='กรุณาวางสูตรก่อนกดปุ่มค่ะ'; statusEl.className='status-msg err'; return; }
 
-  statusEl.textContent='กำลังแกะสูตรเบื้องต้น...';
-  statusEl.className='status-msg';
+  statusEl.textContent='กำลังแกะสูตร...';
+
+  // ฟังก์ชันแปลงเศษส่วนพิเศษ (เช่น ½, ⅓, ¼)
+  const parseUnicodeFraction = (str) => {
+    const fractions = {'½': 0.5, '⅓': 0.333, '¼': 0.25, '¾': 0.75, '⅕': 0.2, '⅙': 0.166, '⅛': 0.125};
+    return str.replace(/[½⅓¼¾⅕⅙⅛]/g, match => fractions[match] || match);
+  };
 
   let localNotes = [];
-
-  const text = rawText
+  const text = parseUnicodeFraction(rawText)
     .replace(/\s+(?:plus|and|และ)\s+(?=\d)/gi, '\n')
     .replace(/\s*\+\s*(?=\d)/g, '\n');
 
-  const normalizedText = text
-    .replace(/sticks?\s+butter/gi,'113 g butter')
-    .replace(/pinch(es)?/gi,'0.36 g')
-    .replace(/dash(es)?/gi,'0.6 ml');
-
-  const lines = normalizedText.split('\n');
+  const lines = text.split('\n');
   
-  const tempMatch = text.match(/(\d{3})\s*(?:°|องศา|C|F)/i);
-  if(tempMatch) {
-    let temp = parseInt(tempMatch[1], 10);
-    if(text.toLowerCase().includes('f') && temp > 250) {
-      temp = Math.round((temp - 32) * 5 / 9);
-    }
-    recipeOvenTempC = temp;
-    localNotes.push(`🔥 Oven Temp: ${temp}°C`);
-  }
-
-  let detectedBakeTime = null;
-  let rawBakeString = "";
-  for (let line of lines) {
-    const lowerLine = line.toLowerCase();
-    if (lowerLine.includes('bake') || lowerLine.includes('baking') || lowerLine.includes('oven') || lowerLine.includes('อบ') || lowerLine.includes('ไฟบนล่าง')) {
-      const match = line.match(/(\d+)\s*(?:-|–|to|ถึง|or)?\s*(\d+)?\s*(?:นาที|min|minute|mins|minutes)/i);
-      if (match) {
-        const minT = match[1];
-        const maxT = match[2];
-        detectedBakeTime = maxT ? round1((parseFloat(minT) + parseFloat(maxT)) / 2) : parseFloat(minT);
-        rawBakeString = maxT ? `${minT}-${maxT}` : minT;
-        break;
-      }
-    }
-  }
-
-  if (!detectedBakeTime) {
-    const fallbackMatch = text.match(/(\d+)\s*(?:-|–|to|ถึง|or)?\s*(\d+)?\s*(?:นาที|min|minute|mins|minutes)/i);
-    if (fallbackMatch) {
-      const minT = fallbackMatch[1];
-      const maxT = fallbackMatch[2];
-      detectedBakeTime = maxT ? round1((parseFloat(minT) + parseFloat(maxT)) / 2) : parseFloat(minT);
-      rawBakeString = maxT ? `${minT}-${maxT}` : minT;
-    }
-  }
-
-  if (detectedBakeTime) {
-    document.getElementById('origBakeTime').value = detectedBakeTime;
-    localNotes.push(`⏱️ Bake Time: ${rawBakeString} mins`);
-  }
-
-  let detectedChilling = null;
-  for (let line of lines) {
-    const lowerLine = line.toLowerCase();
-    if (lowerLine.includes('chill') || lowerLine.includes('rest') || lowerLine.includes('แช่') || lowerLine.includes('พัก')) {
-      const match = line.match(/(\d+)\s*(?:-|–|to|ถึง)?\s*(\d+)?\s*(?:ชม|ชั่วโมง|ช.ม.|hour|hours|hr|hrs|นาที|min|mins|minutes)/i);
-      if (match) {
-        const isMin = match[0].includes('นาที') || match[0].includes('min');
-        detectedChilling = `~${match[1]}${match[2] ? '-' + match[2] : ''} ${isMin ? 'mins' : 'hours'}`;
-        break;
-      } else if (lowerLine.includes('overnight') || lowerLine.includes('ค้างคืน')) {
-        detectedChilling = 'Overnight';
-        break;
-      }
-    }
-  }
-
-  if (detectedChilling) {
-    localNotes.push(`❄️ Chilling: ${detectedChilling}`);
-  }
-
-  if(text.match(/(?:เคาะ|กระแทก|tap|bang)/i)) {
-    localNotes.push(`💥 Note: Pan-tapping or tray-banging suggested`);
-  }
-
   let loadedCount = 0;
   let newIngredients = [];
 
@@ -857,64 +791,54 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     let cleanLine = line.trim().replace(/^[\u25A0-\u25FF\*\-\+\s•▢]+/g, '').trim();
     if(!cleanLine) return;
 
-    let amtStr = '';
-    let unitStr = '';
-    let nameStr = '';
-    let isMatched = false;
+    // Regex ใหม่: รองรับทั้ง [เลข] [หน่วย] [ชื่อ] และกรณีมีวงเล็บกรัม
+    const regex = /^([\d\/\.\s]+)\s*(grams?|g|กรัม|oz|ounces?|ounce|ml|milliliters?|cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา|eggs?|egg|ฟอง)?\s*(.*)$/i;
+    
+    // ตรวจสอบวงเล็บกรัมก่อน (Case 1: มี (293 g) ต่อท้าย)
+    const gramInParen = cleanLine.match(/\(([\d\.]+)\s*(?:g|grams?|กรัม)\)/i);
+    
+    let amt = null, unit = 'g', name = cleanLine;
 
-    const parenthesizedGramMatch = cleanLine.match(/^([\d\/\s\-\.]+)\s*(?:grams|gram|g|กรัม|milliliters|ml|cups|cup|ถ้วย|tablespoons|tbsp|teaspoons|tsp|eggs|egg|fong)?\s*(?:large|medium|small|cold|melted|softened|pure|packed|light|dark|unsalted|salted|heavy)?\s*\(\s*([\d\/\s\-\.]+)\s*(?:g|grams|gram|กรัม)\s*\)\s*(.*)$/i);
-
-    if (parenthesizedGramMatch) {
-      amtStr = parenthesizedGramMatch[2].trim();
-      unitStr = 'g'; 
-      nameStr = parenthesizedGramMatch[3].replace(/^[,\.\s\-\*]+/g, '').trim();
-      isMatched = true;
+    if (gramInParen) {
+        amt = parseFloat(gramInParen[1]);
+        unit = 'g';
+        // พยายามตัดส่วนที่เป็นวงเล็บออกเพื่อหาชื่อ
+        name = cleanLine.replace(/\([\d\.]+\s*(?:g|grams?|กรัม)\)/i, '').trim();
     } else {
-      const standardMatch = cleanLine.match(/^([\d\/\s\-\.]+)\s*(?:large|medium|small|cold|melted|softened|pure|packed|light|dark|unsalted|salted|heavy)?\s*(grams|gram|g|กรัม|milliliters|milliliter|ml|cups|cup|ถ้วย|tablespoons|tablespoon|tbsp\.?|tbsp|ช้อนโต๊ะ|teaspoons|teaspoon|tsp\.?|tsp|ช้อนชา|eggs|egg|ฟอง)\s*(.*)$/i);
-      if (standardMatch) {
-        amtStr = standardMatch[1].trim();
-        unitStr = standardMatch[2].toLowerCase().trim();
-        nameStr = standardMatch[3].replace(/^[,\.\s\-\*]+/g, '').trim();
-        isMatched = true;
-      }
+        const match = cleanLine.match(regex);
+        if (match) {
+            amt = parseAmount(match[1]); 
+            unit = match[2] ? match[2].toLowerCase() : 'g';
+            name = match[3] ? match[3].trim() : (match[2] ? '' : match[1]); 
+        }
     }
 
-    if (isMatched) {
-      let finalUnit = 'g';
-      if(unitStr.includes('cup') || unitStr.includes('ถ้วย')) finalUnit = 'cup';
-      else if(unitStr.includes('tbsp') || unitStr.includes('tablespoon') || unitStr.includes('ช้อนโต๊ะ')) finalUnit = 'tbsp';
-      else if(unitStr.includes('tsp') || unitStr.includes('teaspoon') || unitStr.includes('ช้อนชา')) finalUnit = 'tsp';
-      else if(unitStr.includes('ml') || unitStr.includes('milliliter')) finalUnit = 'ml';
-      else if(unitStr.includes('egg') || unitStr.includes('ฟอง')) finalUnit = 'egg';
-      else if(unitStr === 'g' || unitStr.includes('gram') || unitStr.includes('กรัม')) finalUnit = 'g';
+    if (amt !== null && !isNaN(amt)) {
+        let finalUnit = 'g';
+        if (unit.includes('cup') || unit.includes('ถ้วย')) finalUnit = 'cup';
+        else if (unit.includes('tbsp') || unit.includes('ช้อนโต๊ะ')) finalUnit = 'tbsp';
+        else if (unit.includes('tsp') || unit.includes('ช้อนชา')) finalUnit = 'tsp';
+        else if (unit.includes('ml')) finalUnit = 'ml';
+        else if (unit.includes('egg') || unit.includes('ฟอง')) finalUnit = 'egg';
+        else if (unit.includes('oz') || unit.includes('ounce')) finalUnit = 'oz';
+        else finalUnit = 'g';
 
-      // แก้ไขปัญหาชื่อว่างเปล่าเมื่อข้อความคำว่า egg ถูกใช้เป็นหน่วยไปแล้ว
-      if (!nameStr && finalUnit === 'egg') {
-        nameStr = 'Egg';
-      }
-
-      newIngredients.push({
-        id: uid(), name: nameStr, category: detectCategory(nameStr) || 'Other / Custom',
-        amount: amtStr, unit: finalUnit, customGpc:'', eggSize:'Large (L, ~50g)', sugarReduction:0
-      });
-      loadedCount++;
+        newIngredients.push({
+            id: uid(), name: name, category: detectCategory(name) || 'Other / Custom',
+            amount: amt, unit: finalUnit, customGpc: '', eggSize: 'Large (L, ~50g)', sugarReduction: 0
+        });
+        loadedCount++;
     }
   });
 
   if(newIngredients.length > 0) {
     ingredients = newIngredients;
-    scaleMode = 'pct'; scalePct = 100; overrideRowId = null;
     renderRows();
     renderResults();
   }
 
-  if(localNotes.length > 0) {
-    document.getElementById('notesBox').value = localNotes.join('\n');
-  }
-
-  statusEl.textContent = `วิเคราะห์ดึงข้อมูลสำเร็จ! ได้วัตถุดิบ ${loadedCount} รายการ และสรุปโน้ตเรียบร้อยแล้วค่ะ`;
+  statusEl.textContent = `วิเคราะห์สำเร็จ! ได้วัตถุดิบ ${loadedCount} รายการ`;
   statusEl.className='status-msg ok';
-  updateBakeTimeEstimate();
 });
 
 function currentRecipeData(){
