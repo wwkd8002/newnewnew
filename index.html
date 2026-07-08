@@ -320,7 +320,8 @@ const DENSITY = {
   "Cocoa powder": 90, "Milk": 240, "Water": 240, "Heavy cream": 240, "Honey": 340,
   "Maple syrup": 322, "Rolled oats": 90, "Chocolate chips": 170, "Chopped nuts": 120,
   "Salt": 288, "Baking soda": 220, "Baking powder": 192, "Vanilla extract": 208,
-  "Ground cinnamon": 125, "Cornstarch": 128, "Yeast": 150, "Lemon juice": 240, "Other / Custom": null
+  "Ground cinnamon": 125, "Cornstarch": 128, "Yeast": 150, "Lemon juice": 240,
+  "Coffee": 240, "Espresso": 240, "Buttermilk": 240, "Coconut milk": 240, "Coconut cream": 240, "Other / Custom": null
 };
 
 const LIQUID_DENSITY = {
@@ -357,7 +358,7 @@ const LIQUID_DENSITY = {
 };
 
 const SUGAR_CATEGORIES = ["Granulated sugar", "Brown sugar, packed"];
-const WEIGHT_UNIT_G = { "g": 1, "kg": 1000 };
+const WEIGHT_UNIT_G = { "g": 1, "kg": 1000, "oz": 28.3495 };
 const EGG_PARTS = {
   "Small (S, ~38g)":       {whole:38, yolk:14, white:24},
   "Medium (M, ~44g)":      {whole:44, yolk:16, white:28},
@@ -420,11 +421,11 @@ const CATEGORY_RULES = [
   ['low fat milk','Milk'],['greek yogurt','Other / Custom'],
   ['yogurt','Other / Custom'],['sour cream','Other / Custom'],
   ['evaporated milk','Other / Custom'],['condensed milk','Other / Custom'],
-  ['coconut milk','Other / Custom'],['coconut cream','Other / Custom'],
+  ['coconut milk','Coconut milk'],['coconut cream','Coconut cream'],
   ['olive oil','Vegetable oil'],['canola oil','Vegetable oil'],
   ['corn syrup','Other / Custom'],['glucose syrup','Other / Custom'],
-  ['molasses','Other / Custom'],['espresso','Other / Custom'],
-  ['coffee','Other / Custom'],['melted butter','Butter']
+  ['molasses','Other / Custom'],['espresso','Espresso'],
+  ['coffee','Coffee'],['melted butter','Butter']
 ];
 
 function detectCategory(name){
@@ -473,40 +474,16 @@ function originalGrams(row){
   const amt = parseAmount(row.amount);
   if(isNaN(amt)) return null;
   if(row.unit==='egg') return amt * EGG_PARTS[row.eggSize][detectEggPart(row.name)];
-  if(row.unit==='g') return amt;
-  if(row.unit==='kg') return amt * 1000;
-
-  // ค้นหาค่าความหนาแน่นต่อ ml สำหรับกลุ่มของเหลว ถ้าไม่มีให้ใช้ 1.0 (เท่าน้ำเปล่า) เป็นค่าเริ่มต้น
-  const density = LIQUID_DENSITY[row.category] || 1.0;
-
-  // แปลงหน่วยปริมาตรต่างๆ ให้เป็นหน่วย ml ก่อน
-  let mlAmount = null;
-  if (row.unit === 'ml') {
-    mlAmount = amt;
-  } else if (row.unit === 'oz') {
-    // 1 fluid oz (US) มีประมาณ 29.5735 ml
-    mlAmount = amt * 29.5735;
-  } else if (row.unit === 'cup') {
-    mlAmount = amt * 240;
-  } else if (row.unit === 'tbsp') {
-    mlAmount = amt * 15;
-  } else if (row.unit === 'tsp') {
-    mlAmount = amt * 5;
-  }
-
-  // หากเป็นของเหลวที่มีการบันทึกในระบบ ให้คำนวณ กรัม = ml * density
-  if (mlAmount !== null && LIQUID_DENSITY[row.category]) {
-    return mlAmount * density;
-  }
-
-  // หากไม่ใช่ของเหลว ให้กลับไปใช้ตารางของแห้ง (DENSITY) ตามปกติเดิม
+  if(WEIGHT_UNIT_G[row.unit]) return amt * WEIGHT_UNIT_G[row.unit];
   const gpc = gramsPerCup(row);
   if(gpc==null || isNaN(gpc)) return null;
   if(row.unit==='cup') return amt * gpc;
   if(row.unit==='tbsp') return amt * (gpc/16);
   if(row.unit==='tsp') return amt * (gpc/48);
-  if(row.unit==='oz') return amt * 28.3495; // ออนซ์ของแห้ง (Ounce weight)
-
+  if(row.unit==='ml'){
+    const d=LIQUID_DENSITY[row.category];
+    return d? amt*d:null;
+  }
   return null;
 }
 
@@ -585,6 +562,8 @@ function renderRows(){
     delField.appendChild(delBtn);
     fields.appendChild(delField);
 
+    fields.appendChild(delField);
+
     card.appendChild(fields);
 
     const gpcSubRow = document.createElement('div');
@@ -625,7 +604,7 @@ function renderRows(){
 
     function updateDynamic(){
       row.category = detectCategory(row.name) || 'Other / Custom';
-      const isVolumeUnit = ['cup','tbsp','tsp','ml','oz'].includes(row.unit);
+      const isVolumeUnit = ['cup','tbsp','tsp','ml'].includes(row.unit);
       if(row.unit==='egg'){
         const part = detectEggPart(row.name);
         const partLabel = part==='yolk' ? 'yolk only' : part==='white' ? 'white only' : 'whole egg';
@@ -634,8 +613,9 @@ function renderRows(){
       } else if(isVolumeUnit && row.category==='Other / Custom'){
         hintEl.textContent = row.name.trim() ? "No match — enter grams per cup below." : '';
       } else if(isVolumeUnit){
-        if (LIQUID_DENSITY[row.category]) {
-          hintEl.textContent = `Detected Liquid: ${row.category} (Density: ${LIQUID_DENSITY[row.category]} g/ml)`;
+        if(row.unit==='ml') {
+          const d=LIQUID_DENSITY[row.category];
+          hintEl.textContent = `Detected: ${row.category} (Density: ${d} g/ml)`;
         } else {
           hintEl.textContent = `Detected: ${row.category} (${DENSITY[row.category]} g/cup)`;
         }
@@ -897,18 +877,43 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     const cleanLine = line.trim();
     if(!cleanLine) return;
     
-    const match = cleanLine.match(/^([\d\/\s\-\.]+)\s*(g|grams|กรัม|ml|milliliter|milliliters|cup|cups|ถ้วย|tbsp|ช้อนโต๊ะ|tsp|ช้อนชา|egg|eggs|ฟอง)\s+(.+)$/i);
-    if(match){
-      const amtStr = match[1].trim();
-      const unitStr = match[2].toLowerCase().trim();
-      let nameStr = match[3].trim();
+    let amtStr = '';
+    let unitStr = '';
+    let nameStr = '';
+    let isMatched = false;
+
+    // เงื่อนไขที่ 1: ตรวจสอบว่าในบรรทัดมีวงเล็บที่เป็นกรัมหรือไม่ (เช่น "3/4 cup (168g) unsalted butter")
+    const parenthesizedGramMatch = cleanLine.match(/^(.*?)\(\s*([\d\/\s\-\.]+)\s*(?:g|grams|กรัม)\s*\)\s*(.*)$/i);
+
+    if (parenthesizedGramMatch) {
+      amtStr = parenthesizedGramMatch[2].trim();
+      unitStr = 'g'; // บังคับหน่วยเป็นกรัมอัตโนมัติ
       
+      const textAfter = parenthesizedGramMatch[3].trim();
+      const textBefore = parenthesizedGramMatch[1].trim();
+      
+      // เลือกเก็บชื่อวัตถุดิบที่ถูกต้อง (ส่วนใหญ่อยู่หลังวงเล็บ ถ้าไม่มีค่อยเอาหน้าวงเล็บ)
+      nameStr = textAfter ? textAfter : textBefore;
+      isMatched = true;
+    } else {
+      // เงื่อนไขที่ 2: ถ้าไม่มีกรัมในวงเล็บ ให้ถอดรหัสแบบเดิมตามปกติที่เจอหน้าประโยค
+      const standardMatch = cleanLine.match(/^([\d\/\s\-\.]+)\s*(g|grams|กรัม|ml|milliliter|milliliters|cup|cups|ถ้วย|tbsp|ช้อนโต๊ะ|tsp|ช้อนชา|egg|eggs|ฟอง)\s+(.+)$/i);
+      if (standardMatch) {
+        amtStr = standardMatch[1].trim();
+        unitStr = standardMatch[2].toLowerCase().trim();
+        nameStr = standardMatch[3].trim();
+        isMatched = true;
+      }
+    }
+
+    if (isMatched) {
       let finalUnit = 'g';
       if(unitStr.includes('cup') || unitStr.includes('ถ้วย')) finalUnit = 'cup';
       else if(unitStr.includes('tbsp') || unitStr.includes('ช้อนโต๊ะ')) finalUnit = 'tbsp';
       else if(unitStr.includes('tsp') || unitStr.includes('ช้อนชา')) finalUnit = 'tsp';
       else if(unitStr.includes('ml') || unitStr.includes('milliliter')) finalUnit='ml';
       else if(unitStr.includes('egg') || unitStr.includes('ฟอง')) finalUnit = 'egg';
+      else if(unitStr === 'g' || unitStr.includes('gram') || unitStr.includes('กรัม')) finalUnit = 'g';
 
       newIngredients.push({
         id: uid(), name: nameStr, category: detectCategory(nameStr) || 'Other / Custom',
