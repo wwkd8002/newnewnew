@@ -787,10 +787,13 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
   let localNotes = [];
   const text = parseUnicodeFraction(rawText)
+    // แปลงเครื่องหมาย + ที่อยู่ระหว่างหน่วยและตัวเลขให้เป็นช่องว่าง เพื่อไม่ให้โครงสร้างกลุ่มวัตถุดิบแตกออกจากกัน
+    .replace(/(?<=(?:cups?|tbsp|tablespoons?|tsp|teaspoons?|g|grams?|ml|oz|ounces?))\s*\+\s*(?=\d)/gi, ' ')
+    // ก่อนจะตัดบรรทัดตามคำว่า and/plus ให้รวมกรณี "เลขเต็ม and เศษส่วน" (เลขคละ)
     .replace(/(\d+)\s+(?:and|และ)\s+(\d+\/\d+)/gi, '$1 $2')
     .replace(/(\([^)]*\)|grams?|g\b)/gi,'$1')
-    .replace(/(?<!cups?)(?<!tbsp)(?<!tablespoons?)(?<!tsp)(?<!teaspoons?)\s+(?:plus|and|และ)\s+(?=\d)/gi,'\n')
-    .replace(/\s*\+\s*(?=\d)/g, '\n');
+    // สั่งให้ตัดขึ้นบรรทัดใหม่เฉพาะกรณีที่ plus/and/และ/+ ทำหน้าที่ขึ้นรายการใหม่จริงๆ (ไม่ได้ผูกกับหน่วยตวงเดิมด้านหน้า)
+    .replace(/(?<!cups?)(?<!tbsp)(?<!tablespoons?)(?<!tsp)(?<!teaspoons?)(?<!g)(?<!grams?)(?<!ml)(?<!oz)\s+(?:plus|and|และ|\+)\s+(?=\d)/gi,'\n');
 
   let normalizedText=text
     .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*eggs?\s*\+\s*(\d+)\s*yolks?/gi,
