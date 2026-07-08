@@ -324,14 +324,36 @@ const DENSITY = {
 };
 
 const LIQUID_DENSITY = {
-  "Milk":1.03, "Whole milk":1.03, "Low fat milk":1.03, "Skim milk":1.035,
-  "Buttermilk":1.03, "Evaporated milk":1.06, "Condensed milk":1.28,
-  "Heavy cream":1.02, "Double cream":1.01, "Whipping cream":1.01,
-  "Sour cream":0.98, "Greek yogurt":1.08, "Yogurt":1.03, "Coconut milk":1.02,
-  "Coconut cream":0.97, "Water":1.00, "Vanilla extract":0.95, "Vanilla paste":1.10,
-  "Lemon juice":1.03, "Coffee":1.00, "Espresso":1.01, "Vegetable oil":0.92,
-  "Canola oil":0.92, "Olive oil":0.91, "Melted butter":0.96, "Honey":1.42,
-  "Maple syrup":1.32, "Corn syrup":1.48, "Glucose syrup":1.54, "Molasses":1.40
+  "Milk":1.03,
+  "Whole milk":1.03,
+  "Low fat milk":1.03,
+  "Skim milk":1.035,
+  "Buttermilk":1.03,
+  "Evaporated milk":1.06,
+  "Condensed milk":1.28,
+  "Heavy cream":1.02,
+  "Double cream":1.01,
+  "Whipping cream":1.01,
+  "Sour cream":0.98,
+  "Greek yogurt":1.08,
+  "Yogurt":1.03,
+  "Coconut milk":1.02,
+  "Coconut cream":0.97,
+  "Water":1.00,
+  "Vanilla extract":0.95,
+  "Vanilla paste":1.10,
+  "Lemon juice":1.03,
+  "Coffee":1.00,
+  "Espresso":1.01,
+  "Vegetable oil":0.92,
+  "Canola oil":0.92,
+  "Olive oil":0.91,
+  "Melted butter":0.96,
+  "Honey":1.42,
+  "Maple syrup":1.32,
+  "Corn syrup":1.48,
+  "Glucose syrup":1.54,
+  "Molasses":1.40
 };
 
 const SUGAR_CATEGORIES = ["Granulated sugar", "Brown sugar, packed"];
@@ -386,7 +408,6 @@ const CATEGORY_RULES = [
   ['milk', 'Milk'], ['water', 'Water'], ['honey', 'Honey'],
   ['maple', 'Maple syrup'], ['oat', 'Rolled oats'],
   ['chocolate chip', 'Chocolate chips'], ['choc chip', 'Chocolate chips'],
-  ['chocolate chunks', 'Chocolate chips'], ['chocolate', 'Chocolate chips'],
   ['walnut', 'Chopped nuts'], ['pecan', 'Chopped nuts'],
   ['almond', 'Chopped nuts'], ['hazelnut', 'Chopped nuts'],
   ['nuts', 'Chopped nuts'], ['baking soda', 'Baking soda'],
@@ -424,7 +445,7 @@ function detectEggPart(name){
 
 function addRow(prefill){
   ingredients.push(Object.assign({
-    id: uid(), name:'', category:'All-purpose flour', amount:'', unit:'g',
+    id: uid(), name:'', category:'All-purpose flour', amount:'', unit:'cup',
     customGpc:'', eggSize:'Large (L, ~50g)', sugarReduction:0
   }, prefill||{}));
   renderRows();
@@ -439,7 +460,8 @@ function removeRow(id){
 }
 
 function unitOptionsFor(category){
-  return ["g","kg","oz","cup","tbsp","tsp","ml","egg"];
+  if(category === "Other / Custom") return ["g","kg","oz","cup","tbsp","tsp","ml","egg"];
+  return ["cup","tbsp","tsp","ml","g","kg","oz","egg"];
 }
 
 function gramsPerCup(row){
@@ -507,7 +529,7 @@ function renderRows(){
     const baseUnitSelect = document.createElement('select');
     unitOptionsFor(row.category).forEach(u=>{
       const opt=document.createElement('option'); opt.value=u;
-      opt.textContent = u;
+      opt.textContent = u==='egg' ? 'egg' : u;
       if(u===row.unit) opt.selected=true;
       baseUnitSelect.appendChild(opt);
     });
@@ -844,53 +866,22 @@ document.getElementById('extractBtn').addEventListener('click', function(){
   let newIngredients = [];
 
   lines.forEach(line => {
-    let cleanLine = line.trim();
+    const cleanLine = line.trim();
     if(!cleanLine) return;
     
-    cleanLine = cleanLine
-      .replace(/½/g, '1/2')
-      .replace(/¼/g, '1/4')
-      .replace(/¾/g, '3/4')
-      .replace(/⅓/g, '1/3')
-      .replace(/⅔/g, '2/3');
-
-    // ตรวจสอบโครงสร้างวงเล็บหน่วยกรัมล่วงหน้า เช่น (293 grams) หรือ (293g)
-    const parenGramMatch = cleanLine.match(/\(([\d\s\/\.\-]+)\s*(?:grams|gram|กรัม|g)\)/i);
-    if(parenGramMatch) {
-      const gAmount = parenGramMatch[1].trim();
-      // ดึงเฉพาะชื่อวัตถุดิบหลัก ตัดส่วนปริมาณด้านหน้าและก้อนวงเล็บออกไป
-      let namePart = cleanLine.replace(/\([\s\S]*?\)/g, ''); // ลบวงเล็บทิ้ง
-      namePart = namePart.replace(/^[\d\s\/\.\-½¼¾⅓⅔]+(cups|cup|ถ้วย|tbsp|tsp|ช้อนโต๊ะ|ช้อนชา|ml|grams|gram|g|oz|ounces|ounce|eggs|egg|ฟอง)\b\s*(?:of\b)?/i, '').trim();
-      
-      if(namePart.startsWith(',')) namePart = namePart.substring(1).trim();
-
-      newIngredients.push({
-        id: uid(), name: namePart, category: detectCategory(namePart) || 'Other / Custom',
-        amount: gAmount, unit: 'g', customGpc:'', eggSize:'Large (L, ~50g)', sugarReduction:0
-      });
-      loadedCount++;
-      return; // สิ้นสุดกระบวนการสำหรับบรรทัดนี้ เลื่อนไปทำบรรทัดถัดไป
-    }
-
-    // หากไม่มีวงเล็บระบุเป็นกรัม ให้ใช้เครื่องมือจับคู่ Regex คัดกรองคำตามปกติ
-    const match = cleanLine.match(/^([\d\/\s\-\.]+)\s*(g|grams|gram|กรัม|ml|milliliter|milliliters|cup|cups|ถ้วย|tbsp|ช้อนโต๊ะ|tsp|ช้อนชา|egg|eggs|ฟอง|oz|ounces|ounce)\b\s*(?:of\b)?\s*(.*)$/i);
-    
+    // อัปเดตส่วนนี้เพื่อให้ดึงข้อมูลของคำว่า tablespoon, tablespoons, teaspoon, teaspoons ได้สมบูรณ์ขึ้น
+    const match = cleanLine.match(/^([\d\/\s\-\.]+)\s*(g|grams|กรัม|ml|milliliter|milliliters|cup|cups|ถ้วย|tbsp|tablespoon|tablespoons|ช้อนโต๊ะ|tsp|teaspoon|teaspoons|ช้อนชา|egg|eggs|ฟอง)\.?\s+(.+)$/i);
     if(match){
       const amtStr = match[1].trim();
       const unitStr = match[2].toLowerCase().trim();
       let nameStr = match[3].trim();
       
-      if (nameStr.startsWith(',')) {
-        nameStr = nameStr.substring(1).trim();
-      }
-      
       let finalUnit = 'g';
       if(unitStr.includes('cup') || unitStr.includes('ถ้วย')) finalUnit = 'cup';
-      else if(unitStr.includes('tbsp') || unitStr.includes('ช้อนโต๊ะ')) finalUnit = 'tbsp';
-      else if(unitStr.includes('tsp') || unitStr.includes('ช้อนชา')) finalUnit = 'tsp';
+      else if(unitStr.includes('tbsp') || unitStr.includes('tablespoon') || unitStr.includes('ช้อนโต๊ะ')) finalUnit = 'tbsp';
+      else if(unitStr.includes('tsp') || unitStr.includes('teaspoon') || unitStr.includes('ช้อนชา')) finalUnit = 'tsp';
       else if(unitStr.includes('ml') || unitStr.includes('milliliter')) finalUnit='ml';
       else if(unitStr.includes('egg') || unitStr.includes('ฟอง')) finalUnit = 'egg';
-      else if(unitStr.includes('oz') || unitStr.includes('ounce')) finalUnit = 'oz';
 
       newIngredients.push({
         id: uid(), name: nameStr, category: detectCategory(nameStr) || 'Other / Custom',
