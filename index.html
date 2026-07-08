@@ -386,6 +386,7 @@ const CATEGORY_RULES = [
   ['milk', 'Milk'], ['water', 'Water'], ['honey', 'Honey'],
   ['maple', 'Maple syrup'], ['oat', 'Rolled oats'],
   ['chocolate chip', 'Chocolate chips'], ['choc chip', 'Chocolate chips'],
+  ['chocolate chunks', 'Chocolate chips'], ['chocolate', 'Chocolate chips'],
   ['walnut', 'Chopped nuts'], ['pecan', 'Chopped nuts'],
   ['almond', 'Chopped nuts'], ['hazelnut', 'Chopped nuts'],
   ['nuts', 'Chopped nuts'], ['baking soda', 'Baking soda'],
@@ -438,7 +439,6 @@ function removeRow(id){
 }
 
 function unitOptionsFor(category){
-  if(category === "Other / Custom") return ["g","kg","oz","cup","tbsp","tsp","ml","egg"];
   return ["g","kg","oz","cup","tbsp","tsp","ml","egg"];
 }
 
@@ -844,17 +844,36 @@ document.getElementById('extractBtn').addEventListener('click', function(){
   let newIngredients = [];
 
   lines.forEach(line => {
-    const cleanLine = line.trim();
+    let cleanLine = line.trim();
     if(!cleanLine) return;
     
-    let normalizedLine = cleanLine
-      .replace(/½/g, '0.5')
-      .replace(/¼/g, '0.25')
-      .replace(/¾/g, '0.75')
-      .replace(/⅓/g, '0.33')
-      .replace(/⅔/g, '0.67');
+    cleanLine = cleanLine
+      .replace(/½/g, '1/2')
+      .replace(/¼/g, '1/4')
+      .replace(/¾/g, '3/4')
+      .replace(/⅓/g, '1/3')
+      .replace(/⅔/g, '2/3');
 
-    const match = normalizedLine.match(/^([\d\/\s\-\.]+)\s*(g|grams|กรัม|ml|milliliter|milliliters|cup|cups|ถ้วย|tbsp|ช้อนโต๊ะ|tsp|ช้อนชา|egg|eggs|ฟอง|oz|ounce|ounces)\b\s*(.*)$/i);
+    // ตรวจสอบโครงสร้างวงเล็บหน่วยกรัมล่วงหน้า เช่น (293 grams) หรือ (293g)
+    const parenGramMatch = cleanLine.match(/\(([\d\s\/\.\-]+)\s*(?:grams|gram|กรัม|g)\)/i);
+    if(parenGramMatch) {
+      const gAmount = parenGramMatch[1].trim();
+      // ดึงเฉพาะชื่อวัตถุดิบหลัก ตัดส่วนปริมาณด้านหน้าและก้อนวงเล็บออกไป
+      let namePart = cleanLine.replace(/\([\s\S]*?\)/g, ''); // ลบวงเล็บทิ้ง
+      namePart = namePart.replace(/^[\d\s\/\.\-½¼¾⅓⅔]+(cups|cup|ถ้วย|tbsp|tsp|ช้อนโต๊ะ|ช้อนชา|ml|grams|gram|g|oz|ounces|ounce|eggs|egg|ฟอง)\b\s*(?:of\b)?/i, '').trim();
+      
+      if(namePart.startsWith(',')) namePart = namePart.substring(1).trim();
+
+      newIngredients.push({
+        id: uid(), name: namePart, category: detectCategory(namePart) || 'Other / Custom',
+        amount: gAmount, unit: 'g', customGpc:'', eggSize:'Large (L, ~50g)', sugarReduction:0
+      });
+      loadedCount++;
+      return; // สิ้นสุดกระบวนการสำหรับบรรทัดนี้ เลื่อนไปทำบรรทัดถัดไป
+    }
+
+    // หากไม่มีวงเล็บระบุเป็นกรัม ให้ใช้เครื่องมือจับคู่ Regex คัดกรองคำตามปกติ
+    const match = cleanLine.match(/^([\d\/\s\-\.]+)\s*(g|grams|gram|กรัม|ml|milliliter|milliliters|cup|cups|ถ้วย|tbsp|ช้อนโต๊ะ|tsp|ช้อนชา|egg|eggs|ฟอง|oz|ounces|ounce)\b\s*(?:of\b)?\s*(.*)$/i);
     
     if(match){
       const amtStr = match[1].trim();
