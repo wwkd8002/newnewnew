@@ -807,7 +807,16 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     // นอกจากนี้ยังเก็บค่าตัวเลขเป็น "ข้อความเศษส่วนดิบ" (เช่น "3/4", "2 1/4") แทนการแปลงเป็นทศนิยมทันที
     // เพื่อให้ตรงกับต้นฉบับ ส่วนการคำนวณจริงจะใช้ parseAmount() แปลงค่าตอนคำนวณอยู่แล้ว
     const noParenLine = cleanLine.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
-    const gramInParen = cleanLine.match(/\(([\d\.\/\s]+)\s*(?:g|grams?|กรัม)\)/i);
+
+    // ★ แก้ไข: เดิมหาเลขกรัมได้เฉพาะถ้าในวงเล็บมีแต่ตัวเลข/สัญลักษณ์ล้วนๆ เช่น "(293 g)"
+    // แต่ถ้าในวงเล็บมีข้อความอื่นปนอยู่ด้วย เช่น "(2 sticks/226g)" จะหาตัวเลขกรัมไม่เจอ
+    // ตอนนี้ค้นหาตัวเลข+กรัมจากภายใน "เนื้อหาทุกวงเล็บ" แทน ไม่ว่าจะมีข้อความอื่นปนอยู่ด้วยหรือไม่
+    let gramValue = null;
+    const parenGroups = [...cleanLine.matchAll(/\(([^)]*)\)/g)];
+    for (const pg of parenGroups) {
+        const gm = pg[1].match(/(\d+(?:\.\d+)?)\s*(?:g|grams?|กรัม)\b/i);
+        if (gm) { gramValue = gm[1]; break; }
+    }
 
     let amt = null, unit = 'g', name = cleanLine;
 
@@ -823,11 +832,11 @@ document.getElementById('extractBtn').addEventListener('click', function(){
         }
     }
 
-    if (gramInParen) {
-        // มีกรัมกำกับ -> ดึงกรัมมาก่อนเสมอ ไม่ว่าจะมีหน่วยอื่น (cup/tsp/tbsp) กำกับอยู่ด้วยหรือไม่
-        amt = gramInParen[1].trim();
+    if (gramValue !== null) {
+        // มีกรัมกำกับ (ไม่ว่าจะอยู่ในวงเล็บแบบไหน) -> ดึงกรัมมาก่อนเสมอ ไม่ว่าจะมีหน่วยอื่น (cup/tsp/tbsp) กำกับอยู่ด้วยหรือไม่
+        amt = gramValue.trim();
         unit = 'g';
-        name = mainName !== null ? mainName : cleanLine.replace(/\([\d\.\/\s]+\s*(?:g|grams?|กรัม)\)/i, '').trim();
+        name = mainName !== null ? mainName : cleanLine.replace(/\([^)]*\)/g, '').trim();
     } else if (mainAmt !== null) {
         // ไม่มีกรัมกำกับ -> คงหน่วยเดิมตามต้นฉบับ (tsp/tbsp/cup/ml/egg/oz)
         amt = mainAmt;
