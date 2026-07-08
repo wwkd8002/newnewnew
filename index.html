@@ -764,21 +764,22 @@ function renderResults(){
 }
 
 document.getElementById('extractBtn').addEventListener('click', function(){
-  const text = document.getElementById('pasteBox').value.trim();
+  const rawText = document.getElementById('pasteBox').value.trim();
   const statusEl = document.getElementById('extractStatus');
-  if(!text){ statusEl.textContent='กรุณาวางสูตรก่อนกดปุ่มค่ะ'; statusEl.className='status-msg err'; return; }
+  if(!rawText){ statusEl.textContent='กรุณาวางสูตรก่อนกดปุ่มค่ะ'; statusEl.className='status-msg err'; return; }
 
   statusEl.textContent='กำลังแกะสูตรเบื้องต้น...';
   statusEl.className='status-msg';
 
   let localNotes = [];
 
-  // เพิ่มเงื่อนไขแตกบรรทัดหากเจอคำเชื่อมวัตถุดิบพ่วง (เช่น plus 1 egg yolk) ให้แยกเป็นบรรทัดใหม่ทันที
+  // แก้ไขหลัก: บังคับตัดข้อความขึ้นบรรทัดใหม่ทันทีเมื่อเจอตัวคั่น (plus, and, และ) ที่ตามด้วยตัวเลข ก่อนที่จะนำไปประมวลผลบรรทัด
+  const text = rawText.replace(/\s+(?:plus|and|และ)\s+(?=\d)/gi, '\n');
+
   const normalizedText = text
     .replace(/sticks?\s+butter/gi,'113 g butter')
     .replace(/pinch(es)?/gi,'0.36 g')
-    .replace(/dash(es)?/gi,'0.6 ml')
-    .replace(/\s+(?:plus|and|และ)\s+(?=\d)/gi, '\n');
+    .replace(/dash(es)?/gi,'0.6 ml');
 
   const lines = normalizedText.split('\n');
   
