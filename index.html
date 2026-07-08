@@ -771,10 +771,15 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
   statusEl.textContent='กำลังแกะสูตร...';
 
-  // ฟังก์ชันแปลงเศษส่วนพิเศษ (เช่น ½, ⅓, ¼)
+  // ฟังก์ชันแปลงเศษส่วนพิเศษ (เช่น ½, ⅓, ¼) ให้เป็นข้อความเศษส่วนปกติ เช่น ½ -> "1/2"
+  // ★ แก้ไข: เดิมแปลงเป็นทศนิยม (0.5) ทำให้ค่าที่โชว์กลายเป็นทศนิยมแทนที่จะเป็นเศษส่วน
+  // ตอนนี้แปลงเป็นข้อความเศษส่วน "1/2" แทน และถ้ามีเลขเต็มติดกัน เช่น "2½" จะเติมช่องว่างให้เป็น "2 1/2" (เลขคละ)
   const parseUnicodeFraction = (str) => {
-    const fractions = {'½': 0.5, '⅓': 0.333, '¼': 0.25, '¾': 0.75, '⅕': 0.2, '⅙': 0.166, '⅛': 0.125};
-    return str.replace(/[½⅓¼¾⅕⅙⅛]/g, match => fractions[match] || match);
+    const fractions = {'½': '1/2', '⅓': '1/3', '¼': '1/4', '¾': '3/4', '⅕': '1/5', '⅙': '1/6', '⅛': '1/8'};
+    return str.replace(/(\d)?\s*([½⅓¼¾⅕⅙⅛])/g, (m, wholeDigit, sym) => {
+      const frac = fractions[sym];
+      return wholeDigit ? (wholeDigit + ' ' + frac) : frac;
+    });
   };
 
   let localNotes = [];
@@ -794,50 +799,54 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     // Regex: รองรับทั้ง [เลข] [หน่วย] [ชื่อ] และกรณีมีวงเล็บกรัม
     const regex = /^([\d\/\.\s]+)\s*(grams?|g|กรัม|oz|ounces?|ounce|ml|milliliters?|cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา|eggs?|egg|ฟอง)?\s*(.*)$/i;
 
-    // ★ แก้ไข: ถ้าต้นฉบับระบุหน่วยเป็น tsp/tbsp/cup/ml/egg/oz อย่างชัดเจน (นอกวงเล็บ)
-    // ให้ยึดค่านั้นเป็นหลักเสมอ ห้ามแปลงเป็นกรัมจากตัวเลขในวงเล็บที่แนบมาด้วย
-    // เช่น "3/4 teaspoon (3 g) baking soda" ต้องอ่านเป็น 0.75 tsp ไม่ใช่ 3 g
+    // ★ กฎการเลือกหน่วย (อัปเดตล่าสุด):
+    // ถ้าบรรทัดมีตัวเลขกรัมกำกับอยู่ (ไม่ว่าจะเป็นวงเล็บ เช่น "(293 g)" ต่อท้าย cup/tsp/tbsp ใดๆ ก็ตาม)
+    // ให้ดึง "กรัม" มาใช้เสมอ เพราะแม่นยำกว่า — เช่น "2 1/4 cups flour (293 grams)" -> 293 g
+    // และ "3/4 teaspoon (3 g) baking soda" -> 3 g (ไม่ใช่ 3/4 tsp อีกต่อไปตามที่ต้องการล่าสุด)
+    // ถ้าไม่มีกรัมกำกับเลย (มีแค่หน่วยเดียว เช่น "3/4 teaspoon baking soda" เฉยๆ) -> คงหน่วยเดิมไว้ (tsp/tbsp/cup/...)
+    // นอกจากนี้ยังเก็บค่าตัวเลขเป็น "ข้อความเศษส่วนดิบ" (เช่น "3/4", "2 1/4") แทนการแปลงเป็นทศนิยมทันที
+    // เพื่อให้ตรงกับต้นฉบับ ส่วนการคำนวณจริงจะใช้ parseAmount() แปลงค่าตอนคำนวณอยู่แล้ว
     const noParenLine = cleanLine.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+    const gramInParen = cleanLine.match(/\(([\d\.\/\s]+)\s*(?:g|grams?|กรัม)\)/i);
 
     let amt = null, unit = 'g', name = cleanLine;
-    let matchedExplicitUnit = false;
 
+    // หาชื่อวัตถุดิบ + ค่า/หน่วยหลัก จากบรรทัดที่ตัดวงเล็บออกแล้วก่อนเสมอ (แม่นยำกว่าในการแยกชื่อ)
+    let mainAmt = null, mainUnit = null, mainName = null;
     const mainMatch = noParenLine.match(regex);
     if (mainMatch && mainMatch[2]) {
-        const mainAmt = parseAmount(mainMatch[1]);
-        if (!isNaN(mainAmt)) {
-            amt = mainAmt;
-            unit = mainMatch[2].toLowerCase();
-            name = mainMatch[3] ? mainMatch[3].trim() : '';
-            matchedExplicitUnit = true;
+        const checkAmt = parseAmount(mainMatch[1]);
+        if (!isNaN(checkAmt)) {
+            mainAmt = mainMatch[1].trim();
+            mainUnit = mainMatch[2].toLowerCase();
+            mainName = mainMatch[3] ? mainMatch[3].trim() : '';
         }
     }
 
-    if (!matchedExplicitUnit) {
-        // ตรวจสอบวงเล็บกรัม (Case: มี (293 g) ต่อท้าย) เฉพาะตอนที่ไม่มีหน่วยชัดเจนอื่นแล้วเท่านั้น
-        const gramInParen = cleanLine.match(/\(([\d\.]+)\s*(?:g|grams?|กรัม)\)/i);
-
-        if (gramInParen) {
-            amt = parseFloat(gramInParen[1]);
-            unit = 'g';
-            // พยายามตัดส่วนที่เป็นวงเล็บออกเพื่อหาชื่อ
-            name = cleanLine.replace(/\([\d\.]+\s*(?:g|grams?|กรัม)\)/i, '').trim();
-        } else {
-            const match = cleanLine.match(regex);
-            if (match) {
-                amt = parseAmount(match[1]); 
-                unit = match[2] ? match[2].toLowerCase() : 'g';
-                name = match[3] ? match[3].trim() : (match[2] ? '' : match[1]); 
-            }
+    if (gramInParen) {
+        // มีกรัมกำกับ -> ดึงกรัมมาก่อนเสมอ ไม่ว่าจะมีหน่วยอื่น (cup/tsp/tbsp) กำกับอยู่ด้วยหรือไม่
+        amt = gramInParen[1].trim();
+        unit = 'g';
+        name = mainName !== null ? mainName : cleanLine.replace(/\([\d\.\/\s]+\s*(?:g|grams?|กรัม)\)/i, '').trim();
+    } else if (mainAmt !== null) {
+        // ไม่มีกรัมกำกับ -> คงหน่วยเดิมตามต้นฉบับ (tsp/tbsp/cup/ml/egg/oz)
+        amt = mainAmt;
+        unit = mainUnit;
+        name = mainName;
+    } else {
+        // fallback: กรณีรูปแบบอื่นๆ ที่ regex หลักจับไม่ได้
+        const match = cleanLine.match(regex);
+        if (match) {
+            amt = match[1].trim();
+            unit = match[2] ? match[2].toLowerCase() : 'g';
+            name = match[3] ? match[3].trim() : (match[2] ? '' : match[1]);
         }
     }
 
-    if (amt !== null && !isNaN(amt)) {
+    if (amt !== null && !isNaN(parseAmount(amt))) {
         let finalUnit = 'g';
-        // ★ แก้ไข: เดิม unit ที่ parse ได้อาจเป็นคำเต็ม เช่น "teaspoon", "tablespoon"
-        // ซึ่งไม่มีคำว่า "tsp"/"tbsp" อยู่ในตัวเอง ทำให้เงื่อนไขเดิม (.includes('tsp')) ไม่ match
-        // และหล่นไปเป็น 'g' โดยอัตโนมัติ นี่คือสาเหตุที่ teaspoon/tablespoon ถูกแปลงเป็นกรัม
-        // ต้องตรวจสอบคำเต็มด้วย และเช็ค tablespoon/tbsp ก่อน teaspoon/tsp เสมอ
+        // หน่วยที่ parse ได้อาจเป็นคำเต็ม เช่น "teaspoon", "tablespoon" ซึ่งไม่มีคำว่า "tsp"/"tbsp"
+        // อยู่ในตัวเอง จึงต้องเช็คคำเต็มด้วย และเช็ค tablespoon/tbsp ก่อน teaspoon/tsp เสมอ
         if (unit.includes('cup') || unit.includes('ถ้วย')) finalUnit = 'cup';
         else if (unit.includes('tbsp') || unit.includes('tablespoon') || unit.includes('ช้อนโต๊ะ')) finalUnit = 'tbsp';
         else if (unit.includes('tsp') || unit.includes('teaspoon') || unit.includes('ช้อนชา')) finalUnit = 'tsp';
