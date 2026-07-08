@@ -21,21 +21,18 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  // ย้ายมาไว้ในนี้ เพื่อให้เห็นตัวแปร db
   window.safeStorage = {
     async set(key, val) {
       const path = key.replace(/:/g, '/');
       await set(ref(db, path), JSON.parse(val));
     },
     async listPrefix() {
-      // ดึงข้อมูลทั้งหมดใน 'recipe'
       const snapshot = await get(ref(db, 'recipe'));
       if (!snapshot.exists()) return [];
       
       const data = snapshot.val();
       const keys = [];
       
-      // วนลูปเพื่อเก็บรหัสแปลกๆ นั้นไว้ เพื่อให้ระบบเรียกข้อมูลได้
       for (let id in data) {
         keys.push('recipe:' + id);
       }
@@ -360,7 +357,7 @@ const LIQUID_DENSITY = {
 };
 
 const SUGAR_CATEGORIES = ["Granulated sugar", "Brown sugar, packed"];
-const WEIGHT_UNIT_G = { "g": 1, "kg": 1000, "oz": 28.3495 };
+const WEIGHT_UNIT_G = { "g": 1, "kg": 1000 };
 const EGG_PARTS = {
   "Small (S, ~38g)":       {whole:38, yolk:14, white:24},
   "Medium (M, ~44g)":      {whole:44, yolk:16, white:28},
@@ -476,16 +473,40 @@ function originalGrams(row){
   const amt = parseAmount(row.amount);
   if(isNaN(amt)) return null;
   if(row.unit==='egg') return amt * EGG_PARTS[row.eggSize][detectEggPart(row.name)];
-  if(WEIGHT_UNIT_G[row.unit]) return amt * WEIGHT_UNIT_G[row.unit];
+  if(row.unit==='g') return amt;
+  if(row.unit==='kg') return amt * 1000;
+
+  // ค้นหาค่าความหนาแน่นต่อ ml สำหรับกลุ่มของเหลว ถ้าไม่มีให้ใช้ 1.0 (เท่าน้ำเปล่า) เป็นค่าเริ่มต้น
+  const density = LIQUID_DENSITY[row.category] || 1.0;
+
+  // แปลงหน่วยปริมาตรต่างๆ ให้เป็นหน่วย ml ก่อน
+  let mlAmount = null;
+  if (row.unit === 'ml') {
+    mlAmount = amt;
+  } else if (row.unit === 'oz') {
+    // 1 fluid oz (US) มีประมาณ 29.5735 ml
+    mlAmount = amt * 29.5735;
+  } else if (row.unit === 'cup') {
+    mlAmount = amt * 240;
+  } else if (row.unit === 'tbsp') {
+    mlAmount = amt * 15;
+  } else if (row.unit === 'tsp') {
+    mlAmount = amt * 5;
+  }
+
+  // หากเป็นของเหลวที่มีการบันทึกในระบบ ให้คำนวณ กรัม = ml * density
+  if (mlAmount !== null && LIQUID_DENSITY[row.category]) {
+    return mlAmount * density;
+  }
+
+  // หากไม่ใช่ของเหลว ให้กลับไปใช้ตารางของแห้ง (DENSITY) ตามปกติเดิม
   const gpc = gramsPerCup(row);
   if(gpc==null || isNaN(gpc)) return null;
   if(row.unit==='cup') return amt * gpc;
   if(row.unit==='tbsp') return amt * (gpc/16);
   if(row.unit==='tsp') return amt * (gpc/48);
-  if(row.unit==='ml'){
-    const d=LIQUID_DENSITY[row.category];
-    return d? amt*d:null;
-  }
+  if(row.unit==='oz') return amt * 28.3495; // ออนซ์ของแห้ง (Ounce weight)
+
   return null;
 }
 
@@ -604,7 +625,7 @@ function renderRows(){
 
     function updateDynamic(){
       row.category = detectCategory(row.name) || 'Other / Custom';
-      const isVolumeUnit = ['cup','tbsp','tsp'].includes(row.unit);
+      const isVolumeUnit = ['cup','tbsp','tsp','ml','oz'].includes(row.unit);
       if(row.unit==='egg'){
         const part = detectEggPart(row.name);
         const partLabel = part==='yolk' ? 'yolk only' : part==='white' ? 'white only' : 'whole egg';
@@ -613,11 +634,15 @@ function renderRows(){
       } else if(isVolumeUnit && row.category==='Other / Custom'){
         hintEl.textContent = row.name.trim() ? "No match — enter grams per cup below." : '';
       } else if(isVolumeUnit){
-        hintEl.textContent = `Detected: ${row.category} (${DENSITY[row.category]} g/cup)`;
+        if (LIQUID_DENSITY[row.category]) {
+          hintEl.textContent = `Detected Liquid: ${row.category} (Density: ${LIQUID_DENSITY[row.category]} g/ml)`;
+        } else {
+          hintEl.textContent = `Detected: ${row.category} (${DENSITY[row.category]} g/cup)`;
+        }
       } else {
         hintEl.textContent = '';
       }
-      gpcSubRow.style.display = (isVolumeUnit && row.category==='Other / Custom') ? 'flex' : 'none';
+      gpcSubRow.style.display = (['cup','tbsp','tsp'].includes(row.unit) && row.category==='Other / Custom') ? 'flex' : 'none';
       sugarSubRow.style.display = isSugarRow(row) ? 'flex' : 'none';
       renderResults();
     }
@@ -793,7 +818,6 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
   let localNotes = [];
 
-  // Normalize common baking units
   const normalizedText = text
     .replace(/sticks?\s+butter/gi,'113 g butter')
     .replace(/pinch(es)?/gi,'0.36 g')
@@ -1043,7 +1067,6 @@ renderResults();
 updateTotalReadout();
 updateBakeTimeEstimate();
 
-// เพิ่ม setTimeout ครอบ refreshSavedList ไว้แบบนี้ค่ะ
 setTimeout(() => {
   refreshSavedList();
 }, 1000);
