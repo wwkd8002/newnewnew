@@ -787,11 +787,8 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
   let text = parseUnicodeFraction(rawText);
   
-  // จัดการรวมกรณี "เลขเต็ม and/plus/+ เศษส่วน" (เลขคละ)
   text = text.replace(/(\d+)\s+(?:and|plus|และ|\+)\s+(\d+\/\d+)/gi, '$1 $2');
-  
-  // ล้างวงเล็บน้ำหนักกรัมซ้ำซ้อน
-  text = text.replace(/(\([^)]*\)|grams?|g\b)/gi,'$1');
+  text = text.replace(/(\([^)]*\)/g,''); 
 
   let normalizedText = text
     .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*eggs?\s*(?:\+|\band\b|\bplus\b|\bและ\b)\s*(\d+)\s*yolks?/gi,
@@ -812,7 +809,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     let cleanLine = line.trim().replace(/^[\u25A0-\u25FF\*\-\+\s•▢]+/g, '').trim();
     if(!cleanLine) return;
 
-    // Compound Regex รองรับเครื่องหมาย + หรือคำเชื่อมได้ครบถ้วน
+    // 1. ตรวจสอบ Compound แบบละเอียดเป็นอันดับแรกสุด
     const compoundRegex = /^([\d\/\.\s]+)\s*(cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา)\s*(?:plus|\+|and|และ)\s*([\d\/\.\s]+)\s*(cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา)\s*(.*)$/i;
     const compoundMatch = cleanLine.match(compoundRegex);
     
@@ -821,7 +818,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
       const u1 = compoundMatch[2].toLowerCase();
       const amt2 = parseAmount(compoundMatch[3]);
       const u2 = compoundMatch[4].toLowerCase();
-      const ingredientName = compoundMatch[5].trim();
+      let ingredientName = compoundMatch[5].trim();
       
       if (!isNaN(amt1) && !isNaN(amt2)) {
         const getUnitKey = (u) => {
@@ -850,11 +847,19 @@ document.getElementById('extractBtn').addEventListener('click', function(){
           } else {
             totalAmt = amt1 + amt2;
           }
-          cleanLine = `${totalAmt} ${finalUnit} ${ingredientName}`;
+
+          // เมื่อคำนวณยอดเสร็จแล้ว ยัดใส่อาร์เรย์ทันที แล้วสั่ง return จบการทำงานของบรรทัดนี้เลย (ไม่ปล่อยให้วิ่งลงไปโดนทับ)
+          newIngredients.push({
+              id: uid(), name: ingredientName, category: detectCategory(ingredientName) || 'Other / Custom',
+              amount: String(totalAmt), unit: finalUnit, customGpc: '', eggSize: 'Large (L, ~50g)', sugarReduction: 0
+          });
+          loadedCount++;
+          return; 
         }
       }
     }
 
+    // 2. ถ้าไม่ใช่ Compound ถึงจะวิ่งมาทำงานที่ท่อนปกติข้างล่างนี้
     const regex = /^([\d\/\.\s]+)\s*(grams?|g|กรัม|oz|ounces?|ounce|ml|milliliters?|cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา|eggs?|egg|ฟอง)?\s*(.*)$/i;
     const noParenLine = cleanLine.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -909,7 +914,6 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
         if(/\begg/.test(eggText)){
             finalUnit='egg';
-
             name=name.replace(/,?\s*at room temperature/ig,'')
                      .replace(/,?\s*room temperature/ig,'')
                      .replace(/,?\s*beaten/ig,'')
@@ -1112,7 +1116,7 @@ document.addEventListener('input', e=>{
   if(e.target && e.target.id==='recipeSearch') filterSavedRecipes();
 });
 
-// เริ่มต้นแถวเริ่มต้นของวัตถุดิบตัวอย่าง
+// แถวเริ่มต้นตัวอย่าง
 addRow({name:'All-purpose flour', category:'All-purpose flour', amount:300, unit:'g'});
 addRow({name:'Butter', category:'Butter', amount:227, unit:'g'});
 addRow({name:'Granulated sugar', category:'Granulated sugar', amount:200, unit:'g'});
