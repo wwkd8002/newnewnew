@@ -536,7 +536,7 @@ function renderRows(){
       if(u===row.unit) opt.selected=true;
       baseUnitSelect.appendChild(opt);
     });
-    baseUnitSelect.onchange=e=>{ row.unit=e.target.value; renderRows(); renderResults(); };
+    baseUnitSelect.onchange=e=>{ row.unit=e.target.value; borderUnitSelect.value=e.target.value; renderRows(); renderResults(); };
     unitField.appendChild(baseUnitSelect);
 
     fields.appendChild(nameField);
@@ -785,24 +785,22 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     });
   };
 
-  let localNotes = [];
-  const text = parseUnicodeFraction(rawText)
-    // แปลงเครื่องหมาย + ที่อยู่ระหว่างหน่วยและตัวเลขให้เป็นช่องว่าง เพื่อไม่ให้โครงสร้างกลุ่มวัตถุดิบแตกออกจากกัน
-    .replace(/(?<=(?:cups?|tbsp|tablespoons?|tsp|teaspoons?|g|grams?|ml|oz|ounces?))\s*\+\s*(?=\d)/gi, ' ')
-    // ก่อนจะตัดบรรทัดตามคำว่า and/plus ให้รวมกรณี "เลขเต็ม and เศษส่วน" (เลขคละ)
-    .replace(/(\d+)\s+(?:and|และ)\s+(\d+\/\d+)/gi, '$1 $2')
-    .replace(/(\([^)]*\)|grams?|g\b)/gi,'$1')
-    // สั่งให้ตัดขึ้นบรรทัดใหม่เฉพาะกรณีที่ plus/and/และ/+ ทำหน้าที่ขึ้นรายการใหม่จริงๆ (ไม่ได้ผูกกับหน่วยตวงเดิมด้านหน้า)
-    .replace(/(?<!cups?)(?<!tbsp)(?<!tablespoons?)(?<!tsp)(?<!teaspoons?)(?<!g)(?<!grams?)(?<!ml)(?<!oz)\s+(?:plus|and|และ|\+)\s+(?=\d)/gi,'\n');
+  let text = parseUnicodeFraction(rawText);
+  
+  // จัดการรวมกรณี "เลขเต็ม and/plus/+ เศษส่วน" (เลขคละ)
+  text = text.replace(/(\d+)\s+(?:and|plus|และ|\+)\s+(\d+\/\d+)/gi, '$1 $2');
+  
+  // ล้างวงเล็บน้ำหนักกรัมซ้ำซ้อน
+  text = text.replace(/(\([^)]*\)|grams?|g\b)/gi,'$1');
 
-  let normalizedText=text
-    .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*eggs?\s*\+\s*(\d+)\s*yolks?/gi,
+  let normalizedText = text
+    .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*eggs?\s*(?:\+|\band\b|\bplus\b|\bและ\b)\s*(\d+)\s*yolks?/gi,
       (m,a,size,b)=>`${a} ${size||'large'} egg\n${b} ${size||'large'} egg yolk`)
-    .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*eggs?\s*\+\s*(\d+)\s*whites?/gi,
+    .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*eggs?\s*(?:\+|\band\b|\bplus\b|\bและ\b)\s*(\d+)\s*whites?/gi,
       (m,a,size,b)=>`${a} ${size||'large'} egg\n${b} ${size||'large'} egg white`)
-    .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*egg\s*\+\s*(\d+)\s*yolks?/gi,
+    .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*egg\s*(?:\+|\band\b|\bplus\b|\bและ\b)\s*(\d+)\s*yolks?/gi,
       (m,a,size,b)=>`${a} ${size||'large'} egg\n${b} ${size||'large'} egg yolk`)
-    .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*egg\s*\+\s*(\d+)\s*whites?/gi,
+    .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*egg\s*(?:\+|\band\b|\bplus\b|\bและ\b)\s*(\d+)\s*whites?/gi,
       (m,a,size,b)=>`${a} ${size||'large'} egg\n${b} ${size||'large'} egg white`);
 
   const lines = normalizedText.split('\n');
@@ -814,6 +812,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     let cleanLine = line.trim().replace(/^[\u25A0-\u25FF\*\-\+\s•▢]+/g, '').trim();
     if(!cleanLine) return;
 
+    // Compound Regex รองรับเครื่องหมาย + หรือคำเชื่อมได้ครบถ้วน
     const compoundRegex = /^([\d\/\.\s]+)\s*(cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา)\s*(?:plus|\+|and|และ)\s*([\d\/\.\s]+)\s*(cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา)\s*(.*)$/i;
     const compoundMatch = cleanLine.match(compoundRegex);
     
