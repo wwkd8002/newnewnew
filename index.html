@@ -213,6 +213,26 @@
     h1 { font-size: 26px; }
     .field.name, .field.category { flex-basis: 100%; }
   }
+
+  .layout{display:flex;gap:20px;align-items:flex-start}
+  .sidebar{width:280px;position:sticky;top:15px}
+  .main-content{flex:1;min-width:0}
+  .saved-card details summary{cursor:pointer;font-family:var(--sans);font-weight:600;padding:6px 0;}
+  @media (max-width:900px){
+    .layout{flex-direction:column}
+    .sidebar{width:100%;position:static}
+  }
+
+
+.saved-search{
+ width:100%;
+ padding:8px 10px;
+ margin:8px 0 12px;
+ border:1px solid var(--paper-line);
+ border-radius:4px;
+ font-family:var(--sans);
+}
+
 </style>
 </head>
 <body>
@@ -222,6 +242,27 @@
     <h1>Recipe Scaler</h1>
     <div class="sub">Paste or enter your original recipe, scale it down, ease off the sugar, hit an exact piece count, and save it for next time.</div>
   </header>
+<div class="layout">
+<div class="sidebar">
+<div class="card saved-card">
+<details open>
+<summary>📁 Saved Recipes</summary>
+<div class="card">
+    <h2>Save recipe</h2>
+    <div class="card-note">Save your recipes securely on the cloud.</div>
+    <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+      <input type="text" id="recipeNameInput" placeholder="Name this recipe, e.g. Chocolate chip cookies" style="flex:1; min-width:180px; padding:9px 10px; border:1px solid var(--paper-line); border-radius:3px; font-family:var(--sans); font-size:14px;">
+      <button class="btn" id="saveBtn">Save this recipe</button>
+      <button class="btn secondary" id="saveChangesBtn" style="display:none;">💾 Save Changes</button>
+    </div>
+    <div id="saveStatus" class="status-msg"></div>
+<input id="recipeSearch" class="saved-search" type="text" placeholder="🔍 Search recipe...">
+    <div id="savedList" class="saved-list" style="margin-top:12px;"></div>
+  </div>
+</details>
+</div>
+</div>
+<div class="main-content">
 
   <div class="card">
     <h2>Original Recipe URL (optional)</h2>
@@ -295,19 +336,10 @@
     <div id="emptyMsg" class="empty-msg" style="display:none;">Add an ingredient above to start calculating.</div>
   </div>
 
-  <div class="card">
-    <h2>Save recipe</h2>
-    <div class="card-note">Save your recipes securely on the cloud.</div>
-    <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
-      <input type="text" id="recipeNameInput" placeholder="Name this recipe, e.g. Chocolate chip cookies" style="flex:1; min-width:180px; padding:9px 10px; border:1px solid var(--paper-line); border-radius:3px; font-family:var(--sans); font-size:14px;">
-      <button class="btn" id="saveBtn">Save this recipe</button>
-      <button class="btn secondary" id="saveChangesBtn" style="display:none;">💾 Save Changes</button>
-    </div>
-    <div id="saveStatus" class="status-msg"></div>
-    <div id="savedList" class="saved-list" style="margin-top:12px;"></div>
-  </div>
+  
 
-  <footer>
+  </div></div>
+<footer>
     Density values and standard egg weights are approximations. For best accuracy, weigh your original ingredients on a real scale to double-check.<br>
     Type a number directly into any "Scaled (g)" box to set a target for that ingredient — the whole recipe will rescale to match that ratio.
   </footer>
@@ -1022,6 +1054,28 @@ renderPills();
 renderResults();
 updateTotalReadout();
 updateBakeTimeEstimate();
+
+
+function filterSavedRecipes(){
+  const box=document.getElementById('recipeSearch');
+  const list=document.getElementById('savedList');
+  if(!box||!list) return;
+  const q=box.value.toLowerCase().trim();
+  list.querySelectorAll('.saved-item').forEach(item=>{
+    const name=item.querySelector('div > div');
+    const txt=name?name.textContent.toLowerCase():'';
+    item.style.display=txt.includes(q)?'flex':'none';
+  });
+}
+document.addEventListener('input',function(e){
+  if(e.target && e.target.id==='recipeSearch') filterSavedRecipes();
+});
+const __oldRefresh=refreshSavedList;
+refreshSavedList=async function(){
+  await __oldRefresh();
+  filterSavedRecipes();
+};
+
 
 setTimeout(() => {
   refreshSavedList();
