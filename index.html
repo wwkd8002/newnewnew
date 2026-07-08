@@ -539,6 +539,7 @@ function renderRows(){
     delField.appendChild(delBtn);
     fields.appendChild(delField);
 
+    fields.appendChild(delField);
     card.appendChild(fields);
 
     const gpcSubRow = document.createElement('div');
@@ -773,8 +774,10 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
   let localNotes = [];
 
-  // แก้ไขหลัก: บังคับตัดข้อความขึ้นบรรทัดใหม่ทันทีเมื่อเจอตัวคั่น (plus, and, และ) ที่ตามด้วยตัวเลข ก่อนที่จะนำไปประมวลผลบรรทัด
-  const text = rawText.replace(/\s+(?:plus|and|และ)\s+(?=\d)/gi, '\n');
+  // เพิ่มการแยกบรรทัดทันทีหากเจอเครื่องหมายบวก (+) ที่คั่นระว่างวัตถุดิบที่มีตัวเลขกำกับ
+  const text = rawText
+    .replace(/\s+(?:plus|and|และ)\s+(?=\d)/gi, '\n')
+    .replace(/\s*\+\s*(?=\d)/g, '\n');
 
   const normalizedText = text
     .replace(/sticks?\s+butter/gi,'113 g butter')
