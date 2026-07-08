@@ -229,6 +229,15 @@ overflow:hidden;
 resize:none;
 min-height:90px;
 }
+
+.saved-search{
+width:100%;
+padding:8px 10px;
+margin:8px 0 12px;
+border:1px solid var(--paper-line);
+border-radius:4px;
+font-family:var(--sans);
+}
 </style>
 </head>
 <body>
@@ -252,6 +261,7 @@ min-height:90px;
       <button class="btn secondary" id="saveChangesBtn" style="display:none;">💾 Save Changes</button>
     </div>
     <div id="saveStatus" class="status-msg"></div>
+<input id="recipeSearch" class="saved-search" type="text" placeholder="🔍 Search recipe...">
     <div id="savedList" class="saved-list" style="margin-top:12px;"></div>
   </div>
 </details>
@@ -878,9 +888,22 @@ document.getElementById('extractBtn').addEventListener('click', function(){
         else if (unit.includes('oz') || unit.includes('ounce')) finalUnit = 'oz';
         else finalUnit = 'g';
 
+        // Better egg detection
+        const eggText=(name||'').toLowerCase();
+        if(/\begg/.test(eggText)){
+            finalUnit='egg';
+            if(/extra[ -]?large|\bxl\b/.test(eggText)) name='Egg';
+            else if(/large/.test(eggText)) name='Egg';
+            else if(/medium/.test(eggText)) name='Egg';
+            else if(/small/.test(eggText)) name='Egg';
+        }
         newIngredients.push({
             id: uid(), name: name, category: detectCategory(name) || 'Other / Custom',
-            amount: amt, unit: finalUnit, customGpc: '', eggSize: 'Large (L, ~50g)', sugarReduction: 0
+            amount: amt, unit: finalUnit, customGpc: '', eggSize:
+(/extra[ -]?large|\bxl\b/i.test(name)?'Extra-large (XL, ~56g)':
+/medium/i.test(name)?'Medium (M, ~44g)':
+/small/i.test(name)?'Small (S, ~38g)':
+'Large (L, ~50g)'), sugarReduction: 0
         });
         loadedCount++;
     }
@@ -1051,6 +1074,23 @@ renderPills();
 renderResults();
 updateTotalReadout();
 updateBakeTimeEstimate();
+
+
+function filterSavedRecipes(){
+ const q=(document.getElementById('recipeSearch')?.value||'').toLowerCase().trim();
+ document.querySelectorAll('#savedList .saved-item').forEach(item=>{
+   const t=item.firstElementChild?.innerText.toLowerCase()||'';
+   item.style.display=t.includes(q)?'flex':'none';
+ });
+}
+document.addEventListener('input',e=>{
+ if(e.target&&e.target.id==='recipeSearch') filterSavedRecipes();
+});
+const __refreshSavedList=refreshSavedList;
+refreshSavedList=async function(){
+ await __refreshSavedList();
+ filterSavedRecipes();
+};
 
 setTimeout(() => {
   refreshSavedList();
