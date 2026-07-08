@@ -223,16 +223,6 @@
     .sidebar{width:100%;position:static}
   }
 
-
-.saved-search{
- width:100%;
- padding:8px 10px;
- margin:8px 0 12px;
- border:1px solid var(--paper-line);
- border-radius:4px;
- font-family:var(--sans);
-}
-
 </style>
 </head>
 <body>
@@ -256,7 +246,6 @@
       <button class="btn secondary" id="saveChangesBtn" style="display:none;">💾 Save Changes</button>
     </div>
     <div id="saveStatus" class="status-msg"></div>
-<input id="recipeSearch" class="saved-search" type="text" placeholder="🔍 Search recipe...">
     <div id="savedList" class="saved-list" style="margin-top:12px;"></div>
   </div>
 </details>
@@ -925,6 +914,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 function currentRecipeData(){
   return {
     recipeUrl: document.getElementById('recipeUrl') ? document.getElementById('recipeUrl').value : '',
+    pasteText: document.getElementById('pasteBox').value,
     ingredients: ingredients.map(({id,...rest})=>rest),
     notes: document.getElementById('notesBox').value,
     ovenTempC: recipeOvenTempC,
@@ -967,6 +957,7 @@ async function refreshSavedList(){
         document.getElementById('recipeNameInput').value=label;
         ingredients = (data.ingredients||[]).map(ing=>Object.assign({id:uid()}, ing));
         if(document.getElementById('recipeUrl')) document.getElementById('recipeUrl').value = data.recipeUrl || '';
+        document.getElementById('pasteBox').value = data.pasteText || '';
         document.getElementById('notesBox').value = data.notes || '';
         recipeOvenTempC = (typeof data.ovenTempC === 'number') ? data.ovenTempC : null;
         document.getElementById('origBakeTime').value = data.origBakeTime || '';
@@ -1054,28 +1045,6 @@ renderPills();
 renderResults();
 updateTotalReadout();
 updateBakeTimeEstimate();
-
-
-function filterSavedRecipes(){
-  const box=document.getElementById('recipeSearch');
-  const list=document.getElementById('savedList');
-  if(!box||!list) return;
-  const q=box.value.toLowerCase().trim();
-  list.querySelectorAll('.saved-item').forEach(item=>{
-    const name=item.querySelector('div > div');
-    const txt=name?name.textContent.toLowerCase():'';
-    item.style.display=txt.includes(q)?'flex':'none';
-  });
-}
-document.addEventListener('input',function(e){
-  if(e.target && e.target.id==='recipeSearch') filterSavedRecipes();
-});
-const __oldRefresh=refreshSavedList;
-refreshSavedList=async function(){
-  await __oldRefresh();
-  filterSavedRecipes();
-};
-
 
 setTimeout(() => {
   refreshSavedList();
