@@ -787,8 +787,15 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
   statusEl.textContent='กำลังแกะสูตร...';
 
+  // ฟังก์ชันแปลงเศษส่วนพิเศษ (เช่น ½, ⅓, ¼) ให้เป็นข้อความเศษส่วนปกติ เช่น ½ -> "1/2"
+  // ★ แก้ไข: เดิมแปลงเป็นทศนิยม (0.5) ทำให้ค่าที่โชว์กลายเป็นทศนิยมแทนที่จะเป็นเศษส่วน
+  // ตอนนี้แปลงเป็นข้อความเศษส่วน "1/2" แทน และถ้ามีเลขเต็มติดกัน เช่น "2½" จะเติมช่องว่างให้เป็น "2 1/2" (เลขคละ)
   const parseUnicodeFraction = (str) => {
     const fractions = {'½': '1/2', '⅓': '1/3', '¼': '1/4', '¾': '3/4', '⅕': '1/5', '⅙': '1/6', '⅛': '1/8'};
+    // ★ แก้ไข: เดิมใช้ \s* ซึ่งรวม newline (\n) ด้วย ทำให้ถ้าบรรทัดก่อนหน้าจบแบบไม่มีเลขนำหน้าติดกัน
+    // (เช่น "...cornstarch*\n½ tsp...") มันจะ "กิน" \n ทิ้งไปโดยไม่ตั้งใจ ทำให้สองบรรทัดถูกรวมเป็นบรรทัดเดียว
+    // และบรรทัดที่มีเลขพิเศษ (½ ¼ ¾ ฯลฯ) หายไปทั้งบรรทัดจากรายการที่ได้ ตอนนี้ใช้ [ \t]* แทน
+    // เพื่อรวมเฉพาะเลขเต็ม+เศษส่วนที่ติดกันจริงๆ บนบรรทัดเดียวกันเท่านั้น (เช่น "2½" -> "2 1/2")
     return str.replace(/(\d)?[ \t]*([½⅓¼¾⅕⅙⅛])/g, (m, wholeDigit, sym) => {
       const frac = fractions[sym];
       return wholeDigit ? (wholeDigit + ' ' + frac) : frac;
@@ -797,11 +804,18 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
   let localNotes = [];
   const text = parseUnicodeFraction(rawText)
+    // ★ แก้ไข: ก่อนจะตัดบรรทัดตามคำว่า and/plus ให้รวมกรณี "เลขเต็ม and เศษส่วน" (เลขคละ)
+    // เช่น "1 and 1/2 teaspoons cornstarch" ให้กลายเป็น "1 1/2 teaspoons cornstarch" ก่อน
+    // ไม่เช่นนั้นจะถูกตัดออกเป็น 2 รายการผิดๆ คือ "1" กับ "1/2 teaspoons cornstarch"
     .replace(/(\d+)\s+(?:and|และ)\s+(\d+\/\d+)/gi, '$1 $2')
     .replace(/(\([^)]*\)|grams?|g\b)/gi,'$1')
+    // Don't split ingredient lines like "1 cup plus 6 tbsp (206g) flour"
     .replace(/(?<!cups?)(?<!tbsp)(?<!tablespoons?)(?<!tsp)(?<!teaspoons?)\s+(?:plus|and|และ)\s+(?=\d)/gi,'\n')
     .replace(/\s*\+\s*(?=\d)/g, '\n');
 
+  
+  // Normalize egg combinations before splitting into lines.
+  // Example: "1 large egg + 1 yolk" becomes two ingredient lines.
   let normalizedText=text
     .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*eggs?\s*\+\s*(\d+)\s*yolks?/gi,
       (m,a,size,b)=>`${a} ${size||'large'} egg\n${b} ${size||'large'} egg yolk`)
@@ -812,7 +826,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*egg\s*\+\s*(\d+)\s*whites?/gi,
       (m,a,size,b)=>`${a} ${size||'large'} egg\n${b} ${size||'large'} egg white`);
 
-  const lines = normalizedText.split('\n');
+const lines = normalizedText.split('\n');
   
   let loadedCount = 0;
   let newIngredients = [];
@@ -821,53 +835,21 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     let cleanLine = line.trim().replace(/^[\u25A0-\u25FF\*\-\+\s•▢]+/g, '').trim();
     if(!cleanLine) return;
 
-    // === เพิ่ม Logic ตรวจจับและยุบรวมหน่วยควบตรงนี้ ===
-    const compoundRegex = /^([\d\/\.\s]+)\s*(cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา)\s*(?:plus|\+|and|และ)\s*([\d\/\.\s]+)\s*(cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา)\s*(.*)$/i;
-    const compoundMatch = cleanLine.match(compoundRegex);
-    
-    if (compoundMatch) {
-      const amt1 = parseAmount(compoundMatch[1]);
-      const u1 = compoundMatch[2].toLowerCase();
-      const amt2 = parseAmount(compoundMatch[3]);
-      const u2 = compoundMatch[4].toLowerCase();
-      const ingredientName = compoundMatch[5].trim();
-      
-      if (!isNaN(amt1) && !isNaN(amt2)) {
-        const getUnitKey = (u) => {
-          if (u.includes('cup') || u.includes('ถ้วย')) return 'cup';
-          if (u.includes('tbsp') || u.includes('tablespoon') || u.includes('ช้อนโต๊ะ')) return 'tbsp';
-          if (u.includes('tsp') || u.includes('teaspoon') || u.includes('ช้อนชา')) return 'tsp';
-          return null;
-        };
-        
-        const k1 = getUnitKey(u1);
-        const k2 = getUnitKey(u2);
-        
-        if (k1 && k2) {
-          let totalAmt = 0;
-          let finalUnit = k2;
-          
-          if (k1 === 'cup' && k2 === 'tbsp') {
-            totalAmt = (amt1 * 16) + amt2;
-            finalUnit = 'tbsp';
-          } else if (k1 === 'tbsp' && k2 === 'tsp') {
-            totalAmt = (amt1 * 3) + amt2;
-            finalUnit = 'tsp';
-          } else if (k1 === 'cup' && k2 === 'tsp') {
-            totalAmt = (amt1 * 48) + amt2;
-            finalUnit = 'tsp';
-          } else {
-            totalAmt = amt1 + amt2;
-          }
-          cleanLine = `${totalAmt} ${finalUnit} ${ingredientName}`;
-        }
-      }
-    }
-    // ============================================
-
+    // Regex: รองรับทั้ง [เลข] [หน่วย] [ชื่อ] และกรณีมีวงเล็บกรัม
     const regex = /^([\d\/\.\s]+)\s*(grams?|g|กรัม|oz|ounces?|ounce|ml|milliliters?|cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา|eggs?|egg|ฟอง)?\s*(.*)$/i;
+
+    // ★ กฎการเลือกหน่วย (อัปเดตล่าสุด):
+    // ถ้าบรรทัดมีตัวเลขกรัมกำกับอยู่ (ไม่ว่าจะเป็นวงเล็บ เช่น "(293 g)" ต่อท้าย cup/tsp/tbsp ใดๆ ก็ตาม)
+    // ให้ดึง "กรัม" มาใช้เสมอ เพราะแม่นยำกว่า — เช่น "2 1/4 cups flour (293 grams)" -> 293 g
+    // และ "3/4 teaspoon (3 g) baking soda" -> 3 g (ไม่ใช่ 3/4 tsp อีกต่อไปตามที่ต้องการล่าสุด)
+    // ถ้าไม่มีกรัมกำกับเลย (มีแค่หน่วยเดียว เช่น "3/4 teaspoon baking soda" เฉยๆ) -> คงหน่วยเดิมไว้ (tsp/tbsp/cup/...)
+    // นอกจากนี้ยังเก็บค่าตัวเลขเป็น "ข้อความเศษส่วนดิบ" (เช่น "3/4", "2 1/4") แทนการแปลงเป็นทศนิยมทันที
+    // เพื่อให้ตรงกับต้นฉบับ ส่วนการคำนวณจริงจะใช้ parseAmount() แปลงค่าตอนคำนวณอยู่แล้ว
     const noParenLine = cleanLine.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
 
+    // ★ แก้ไข: เดิมหาเลขกรัมได้เฉพาะถ้าในวงเล็บมีแต่ตัวเลข/สัญลักษณ์ล้วนๆ เช่น "(293 g)"
+    // แต่ถ้าในวงเล็บมีข้อความอื่นปนอยู่ด้วย เช่น "(2 sticks/226g)" จะหาตัวเลขกรัมไม่เจอ
+    // ตอนนี้ค้นหาตัวเลข+กรัมจากภายใน "เนื้อหาทุกวงเล็บ" แทน ไม่ว่าจะมีข้อความอื่นปนอยู่ด้วยหรือไม่
     let gramValue = null;
     const parenGroups = [...cleanLine.matchAll(/\(([^)]*)\)/g)];
     for (const pg of parenGroups) {
@@ -877,6 +859,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
     let amt = null, unit = 'g', name = cleanLine;
 
+    // หาชื่อวัตถุดิบ + ค่า/หน่วยหลัก จากบรรทัดที่ตัดวงเล็บออกแล้วก่อนเสมอ (แม่นยำกว่าในการแยกชื่อ)
     let mainAmt = null, mainUnit = null, mainName = null;
     const mainMatch = noParenLine.match(regex);
     if (mainMatch && mainMatch[2]) {
@@ -889,14 +872,17 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     }
 
     if (gramValue !== null) {
+        // มีกรัมกำกับ (ไม่ว่าจะอยู่ในวงเล็บแบบไหน) -> ดึงกรัมมาก่อนเสมอ ไม่ว่าจะมีหน่วยอื่น (cup/tsp/tbsp) กำกับอยู่ด้วยหรือไม่
         amt = gramValue.trim();
         unit = 'g';
         name = mainName !== null ? mainName : cleanLine.replace(/\([^)]*\)/g, '').trim();
     } else if (mainAmt !== null) {
+        // ไม่มีกรัมกำกับ -> คงหน่วยเดิมตามต้นฉบับ (tsp/tbsp/cup/ml/egg/oz)
         amt = mainAmt;
         unit = mainUnit;
         name = mainName;
     } else {
+        // fallback: กรณีรูปแบบอื่นๆ ที่ regex หลักจับไม่ได้
         const match = cleanLine.match(regex);
         if (match) {
             amt = match[1].trim();
@@ -907,6 +893,8 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
     if (amt !== null && !isNaN(parseAmount(amt))) {
         let finalUnit = 'g';
+        // หน่วยที่ parse ได้อาจเป็นคำเต็ม เช่น "teaspoon", "tablespoon" ซึ่งไม่มีคำว่า "tsp"/"tbsp"
+        // อยู่ในตัวเอง จึงต้องเช็คคำเต็มด้วย และเช็ค tablespoon/tbsp ก่อน teaspoon/tsp เสมอ
         if (unit.includes('cup') || unit.includes('ถ้วย')) finalUnit = 'cup';
         else if (unit.includes('tbsp') || unit.includes('tablespoon') || unit.includes('ช้อนโต๊ะ')) finalUnit = 'tbsp';
         else if (unit.includes('tsp') || unit.includes('teaspoon') || unit.includes('ช้อนชา')) finalUnit = 'tsp';
@@ -915,11 +903,13 @@ document.getElementById('extractBtn').addEventListener('click', function(){
         else if (unit.includes('oz') || unit.includes('ounce')) finalUnit = 'oz';
         else finalUnit = 'g';
 
+        // Improved egg detection (whole / yolk / white)
         const eggText=(name||'').toLowerCase();
 
         if(/\begg/.test(eggText)){
             finalUnit='egg';
 
+            // clean descriptors that are not ingredient names
             name=name.replace(/,?\s*at room temperature/ig,'')
                      .replace(/,?\s*room temperature/ig,'')
                      .replace(/,?\s*beaten/ig,'')
@@ -1117,7 +1107,8 @@ updateBakeTimeEstimate();
 
 function filterSavedRecipes(){
  const q=(document.getElementById('recipeSearch')?.value||'').toLowerCase().trim();
- document.querySelectorAll('#savedList .saved-item').forEach(item=>{\n   const t=item.firstElementChild?.innerText.toLowerCase()||'';
+ document.querySelectorAll('#savedList .saved-item').forEach(item=>{
+   const t=item.firstElementChild?.innerText.toLowerCase()||'';
    item.style.display=t.includes(q)?'flex':'none';
  });
 }
