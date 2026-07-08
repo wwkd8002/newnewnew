@@ -776,7 +776,11 @@ document.getElementById('extractBtn').addEventListener('click', function(){
   // ตอนนี้แปลงเป็นข้อความเศษส่วน "1/2" แทน และถ้ามีเลขเต็มติดกัน เช่น "2½" จะเติมช่องว่างให้เป็น "2 1/2" (เลขคละ)
   const parseUnicodeFraction = (str) => {
     const fractions = {'½': '1/2', '⅓': '1/3', '¼': '1/4', '¾': '3/4', '⅕': '1/5', '⅙': '1/6', '⅛': '1/8'};
-    return str.replace(/(\d)?\s*([½⅓¼¾⅕⅙⅛])/g, (m, wholeDigit, sym) => {
+    // ★ แก้ไข: เดิมใช้ \s* ซึ่งรวม newline (\n) ด้วย ทำให้ถ้าบรรทัดก่อนหน้าจบแบบไม่มีเลขนำหน้าติดกัน
+    // (เช่น "...cornstarch*\n½ tsp...") มันจะ "กิน" \n ทิ้งไปโดยไม่ตั้งใจ ทำให้สองบรรทัดถูกรวมเป็นบรรทัดเดียว
+    // และบรรทัดที่มีเลขพิเศษ (½ ¼ ¾ ฯลฯ) หายไปทั้งบรรทัดจากรายการที่ได้ ตอนนี้ใช้ [ \t]* แทน
+    // เพื่อรวมเฉพาะเลขเต็ม+เศษส่วนที่ติดกันจริงๆ บนบรรทัดเดียวกันเท่านั้น (เช่น "2½" -> "2 1/2")
+    return str.replace(/(\d)?[ \t]*([½⅓¼¾⅕⅙⅛])/g, (m, wholeDigit, sym) => {
       const frac = fractions[sym];
       return wholeDigit ? (wholeDigit + ' ' + frac) : frac;
     });
@@ -784,6 +788,10 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
   let localNotes = [];
   const text = parseUnicodeFraction(rawText)
+    // ★ แก้ไข: ก่อนจะตัดบรรทัดตามคำว่า and/plus ให้รวมกรณี "เลขเต็ม and เศษส่วน" (เลขคละ)
+    // เช่น "1 and 1/2 teaspoons cornstarch" ให้กลายเป็น "1 1/2 teaspoons cornstarch" ก่อน
+    // ไม่เช่นนั้นจะถูกตัดออกเป็น 2 รายการผิดๆ คือ "1" กับ "1/2 teaspoons cornstarch"
+    .replace(/(\d+)\s+(?:and|และ)\s+(\d+\/\d+)/gi, '$1 $2')
     .replace(/\s+(?:plus|and|และ)\s+(?=\d)/gi, '\n')
     .replace(/\s*\+\s*(?=\d)/g, '\n');
 
