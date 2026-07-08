@@ -773,10 +773,12 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
   let localNotes = [];
 
+  // เพิ่มเงื่อนไขแตกบรรทัดหากเจอคำเชื่อมวัตถุดิบพ่วง (เช่น plus 1 egg yolk) ให้แยกเป็นบรรทัดใหม่ทันที
   const normalizedText = text
     .replace(/sticks?\s+butter/gi,'113 g butter')
     .replace(/pinch(es)?/gi,'0.36 g')
-    .replace(/dash(es)?/gi,'0.6 ml');
+    .replace(/dash(es)?/gi,'0.6 ml')
+    .replace(/\s+(?:plus|and|และ)\s+(?=\d)/gi, '\n');
 
   const lines = normalizedText.split('\n');
   
@@ -849,7 +851,6 @@ document.getElementById('extractBtn').addEventListener('click', function(){
   let newIngredients = [];
 
   lines.forEach(line => {
-    // 1. ล้างสัญลักษณ์กล่องสี่เหลี่ยม เครื่องหมายขีด ดอกจัน และช่องว่างส่วนเกินออกไปก่อนเลย
     let cleanLine = line.trim().replace(/^[\u25A0-\u25FF\*\-\+\s•▢]+/g, '').trim();
     if(!cleanLine) return;
 
@@ -858,17 +859,14 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     let nameStr = '';
     let isMatched = false;
 
-    // เงื่อนไขหลัก 1: เจอปริมาณที่มีวงเล็บหน่วยกรัมต่อท้าย เช่น "1 1/2 cups (191 grams) all-purpose flour*"
     const parenthesizedGramMatch = cleanLine.match(/^([\d\/\s\-\.]+)\s*(?:grams|gram|g|กรัม|milliliters|ml|cups|cup|ถ้วย|tablespoons|tbsp|teaspoons|tsp|eggs|egg|fong)?\s*(?:large|medium|small|cold|melted|softened|pure|packed|light|dark|unsalted|salted|heavy)?\s*\(\s*([\d\/\s\-\.]+)\s*(?:g|grams|gram|กรัม)\s*\)\s*(.*)$/i);
 
     if (parenthesizedGramMatch) {
-      // ดึงตัวเลขในวงเล็บและบังคับเป็นหน่วย 'g' ตามความต้องการหลัก
       amtStr = parenthesizedGramMatch[2].trim();
       unitStr = 'g'; 
       nameStr = parenthesizedGramMatch[3].replace(/^[,\.\s\-\*]+/g, '').trim();
       isMatched = true;
     } else {
-      // เงื่อนไขหลัก 2: ไม่มีวงเล็บกรัม เป็นหน่วยเดี่ยว ๆ เช่น "1 teaspoon baking soda" หรือ "2 large eggs plus 1 egg yolk"
       const standardMatch = cleanLine.match(/^([\d\/\s\-\.]+)\s*(?:large|medium|small|cold|melted|softened|pure|packed|light|dark|unsalted|salted|heavy)?\s*(grams|gram|g|กรัม|milliliters|milliliter|ml|cups|cup|ถ้วย|tablespoons|tablespoon|tbsp\.?|tbsp|ช้อนโต๊ะ|teaspoons|teaspoon|tsp\.?|tsp|ช้อนชา|eggs|egg|ฟอง)\s*(.*)$/i);
       if (standardMatch) {
         amtStr = standardMatch[1].trim();
