@@ -888,22 +888,36 @@ document.getElementById('extractBtn').addEventListener('click', function(){
         else if (unit.includes('oz') || unit.includes('ounce')) finalUnit = 'oz';
         else finalUnit = 'g';
 
-        // Better egg detection
+        // Improved egg detection (whole / yolk / white)
         const eggText=(name||'').toLowerCase();
+
         if(/\begg/.test(eggText)){
             finalUnit='egg';
-            if(/extra[ -]?large|\bxl\b/.test(eggText)) name='Egg';
-            else if(/large/.test(eggText)) name='Egg';
-            else if(/medium/.test(eggText)) name='Egg';
-            else if(/small/.test(eggText)) name='Egg';
+
+            // clean descriptors that are not ingredient names
+            name=name.replace(/,?\s*at room temperature/ig,'')
+                     .replace(/,?\s*room temperature/ig,'')
+                     .replace(/,?\s*beaten/ig,'')
+                     .trim();
+
+            if(/egg\s*yolks?|yolks?/.test(eggText)){
+                name='Egg yolk';
+            }else if(/egg\s*whites?|whites?/.test(eggText)){
+                name='Egg white';
+            }else{
+                name='Egg';
+            }
         }
+        const eggSizeText=(eggText||'');
+        const detectedEggSize=
+            /extra[ -]?large|\bxl\b/i.test(eggSizeText)?'Extra-large (XL, ~56g)':
+            /medium/i.test(eggSizeText)?'Medium (M, ~44g)':
+            /small/i.test(eggSizeText)?'Small (S, ~38g)':
+            'Large (L, ~50g)';
+
         newIngredients.push({
             id: uid(), name: name, category: detectCategory(name) || 'Other / Custom',
-            amount: amt, unit: finalUnit, customGpc: '', eggSize:
-(/extra[ -]?large|\bxl\b/i.test(name)?'Extra-large (XL, ~56g)':
-/medium/i.test(name)?'Medium (M, ~44g)':
-/small/i.test(name)?'Small (S, ~38g)':
-'Large (L, ~50g)'), sugarReduction: 0
+            amount: amt, unit: finalUnit, customGpc: '', eggSize: detectedEggSize, sugarReduction: 0
         });
         loadedCount++;
     }
