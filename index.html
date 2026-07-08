@@ -66,124 +66,917 @@
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    background: radial-gradient(circle at 1px 1px, var(--paper-line) 1px, transparent 1px) 0 0/22px 22px, var(--paper);
+    background:
+      radial-gradient(circle at 1px 1px, var(--paper-line) 1px, transparent 1px) 0 0/22px 22px,
+      var(--paper);
     color: var(--ink);
     font-family: Georgia, 'Times New Roman', serif;
     padding: 28px 14px 80px;
   }
   .wrap { max-width: 840px; margin: 0 auto; }
   header { margin-bottom: 24px; }
-  .eyebrow { font-family: var(--sans); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent-deep); font-weight: 700; margin-bottom: 8px; }
+  .eyebrow {
+    font-family: var(--sans); font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--accent-deep); font-weight: 700; margin-bottom: 8px;
+  }
   h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -.01em; line-height: 1.15; }
   .sub { font-family: var(--sans); color: var(--ink-soft); font-size: 14px; max-width: 64ch; line-height: 1.55; }
-  .card { background: var(--card); border: 1px solid var(--paper-line); border-radius: 4px; padding: 18px 16px; margin-bottom: 18px; box-shadow: 0 1px 0 rgba(54,43,34,0.03); }
-  .card h2 { font-size: 12.5px; margin: 0 0 4px; font-family: var(--sans); text-transform: uppercase; letter-spacing: .1em; color: var(--ink-soft); font-weight: 700; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--paper-line); border-radius: 4px;
+    padding: 18px 16px; margin-bottom: 18px; box-shadow: 0 1px 0 rgba(54,43,34,0.03);
+  }
+  .card h2 {
+    font-size: 12.5px; margin: 0 0 4px; font-family: var(--sans);
+    text-transform: uppercase; letter-spacing: .1em; color: var(--ink-soft); font-weight: 700;
+  }
   .card .card-note { font-family: var(--sans); font-size: 12px; color: var(--ink-soft); margin-bottom: 12px; line-height: 1.5; }
-  textarea { width: 100%; font-family: var(--sans); font-size: 14px; padding: 10px; border: 1px solid var(--paper-line); border-radius: 3px; background: #fff; color: var(--ink); resize: vertical; min-height: 90px; }
-  .btn { font-family: var(--sans); font-size: 13.5px; font-weight: 600; padding: 9px 16px; border-radius: 4px; cursor: pointer; border: 1.5px solid var(--accent); background: var(--accent); color: #fff; }
+
+  textarea {
+    width: 100%; font-family: var(--sans); font-size: 14px; padding: 10px;
+    border: 1px solid var(--paper-line); border-radius: 3px; background: #fff; color: var(--ink);
+    resize: vertical; min-height: 90px;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .btn {
+    font-family: var(--sans); font-size: 13.5px; font-weight: 600;
+    padding: 9px 16px; border-radius: 4px; cursor: pointer; border: 1.5px solid var(--accent);
+    background: var(--accent); color: #fff;
+  }
+  .btn:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
   .btn.secondary { background: #fff; color: var(--accent-deep); border-color: var(--accent); }
+  .btn.secondary:hover { background: #eef0e6; }
+  .btn.danger { background: #fff; color: var(--rose); border-color: var(--rose); }
+  .btn.danger:hover { background: #f5e6e3; }
+  .btn.small { padding: 5px 11px; font-size: 12.5px; }
+
   .status-msg { font-family: var(--sans); font-size: 12.5px; margin-top: 8px; color: var(--ink-soft); }
   .status-msg.err { color: var(--rose); }
   .status-msg.ok { color: var(--accent-deep); }
-  .ing-card { border: 1px solid var(--paper-line); border-radius: 4px; background: #fff; padding: 12px; margin-bottom: 10px; }
+
+  .ing-card {
+    border: 1px solid var(--paper-line); border-radius: 4px; background: #fff;
+    padding: 12px; margin-bottom: 10px;
+  }
   .ing-fields { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
   .field { display: flex; flex-direction: column; gap: 4px; font-family: var(--sans); }
   .field label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); font-weight: 600; }
-  .field input, .field select { font-family: var(--sans); font-size: 14px; padding: 7px 8px; border: 1px solid var(--paper-line); border-radius: 3px; }
+  .field input, .field select {
+    font-family: var(--sans); font-size: 14px; padding: 7px 8px;
+    border: 1px solid var(--paper-line); border-radius: 3px; background: #fff; color: var(--ink);
+  }
+  .field input:focus, .field select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   .field.name { flex: 2 1 160px; }
+  .field.category { flex: 2 1 170px; }
   .field.amount { flex: 1 1 80px; }
+  .field.amount input { text-align: right; }
   .field.unit { flex: 1 1 90px; }
+  .field.eggsize { flex: 1 1 130px; }
+  .field.delete { flex: 0 0 auto; align-self: flex-end; }
+  .del-btn {
+    background: none; border: none; color: var(--rose); cursor: pointer;
+    font-size: 19px; line-height: 1; padding: 6px 8px; border-radius: 3px;
+  }
+  .del-btn:hover { background: #f1e0dc; }
+
+  .sub-row {
+    font-size: 12px; color: var(--ink-soft); margin-top: 10px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-family: var(--sans);
+  }
+  .sub-row input.gpc { width: 90px; padding: 4px 6px; font-size: 13px; }
+
+  .sugar-tag {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .03em;
+    color: #fff; background: var(--gold); padding: 2px 7px; border-radius: 10px; margin-left: 6px;
+  }
+  .mini-pill {
+    font-family: var(--sans); font-size: 12px; font-weight: 600;
+    padding: 4px 10px; border-radius: 14px; border: 1px solid var(--paper-line);
+    background: #fff; color: var(--ink); cursor: pointer;
+  }
+  .mini-pill.active { background: var(--gold); border-color: var(--gold); color: #fff; }
+  .mini-pill:hover:not(.active) { border-color: var(--gold); }
+  .sub-row input.mini-num { width: 56px; padding: 4px 6px; font-size: 12.5px; }
+
+  .add-row-btn {
+    margin-top: 6px; font-family: var(--sans); font-size: 13.5px; font-weight: 600;
+    background: none; border: 1.5px dashed var(--accent); color: var(--accent-deep);
+    padding: 9px 14px; border-radius: 4px; cursor: pointer; width: 100%;
+  }
+  .add-row-btn:hover { background: #eef0e6; }
+
+  .scale-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .pill {
+    font-family: var(--sans); font-size: 13.5px; font-weight: 600;
+    padding: 8px 16px; border-radius: 20px; border: 1.5px solid var(--paper-line);
+    background: #fff; color: var(--ink); cursor: pointer;
+  }
+  .pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pill:hover:not(.active) { border-color: var(--accent); }
+  .custom-scale { display: flex; align-items: center; gap: 8px; font-family: var(--sans); font-size: 13.5px; color: var(--ink-soft); flex-wrap: wrap; }
+  .custom-scale input { width: 70px; padding: 7px 8px; border: 1px solid var(--paper-line); border-radius: 3px; font-size: 14px; }
+  .scale-readout { margin-top: 12px; font-family: var(--mono); font-size: 26px; color: var(--accent-deep); font-weight: 700; }
+  .scale-readout span { font-size: 13px; font-family: var(--sans); color: var(--ink-soft); font-weight: 400; }
+
+  .weight-calc { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; font-family: var(--sans); }
+  .weight-calc .field { display: flex; flex-direction: column; gap: 4px; }
+  .weight-calc label { font-size: 12px; color: var(--ink-soft); }
+  .weight-calc input { width: 110px; padding: 8px 9px; border: 1px solid var(--paper-line); border-radius: 3px; font-size: 14px; }
+  .weight-calc .total-readout { font-family: var(--mono); font-size: 14px; color: var(--ink-soft); }
+
   table { width: 100%; border-collapse: collapse; font-family: var(--sans); }
-  th { text-align: left; font-size: 10.5px; text-transform: uppercase; padding: 6px; border-bottom: 2px solid var(--ink); }
-  td { padding: 9px 6px; border-bottom: 1px solid var(--paper-line); font-size: 14px; }
-  .num { text-align: right; }
-  .result { font-family: var(--mono); font-weight: 700; color: var(--accent-deep); }
+  th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); padding: 6px 6px; border-bottom: 2px solid var(--ink); }
+  th.num, td.num { text-align: right; }
+  td { padding: 9px 6px; border-bottom: 1px solid var(--paper-line); font-size: 14px; vertical-align: middle; }
+  td.orig { color: var(--ink-soft); font-family: var(--mono); font-size: 13px; }
+  td.result { font-family: var(--mono); font-weight: 700; color: var(--accent-deep); font-size: 15.5px; }
+  .target-input { width: 74px; text-align: right; font-family: var(--mono); font-size: 14.5px; padding: 5px 6px; border: 1px solid var(--gold); border-radius: 3px; background: #FEFBF3; }
+  .target-input:focus { outline: 2px solid var(--gold); }
+  .total-row td { font-weight: 700; border-top: 2px solid var(--ink); border-bottom: none; }
+  .warn-row td { color: var(--rose); font-size: 12.5px; font-family: var(--sans); font-style: italic; }
+  .empty-msg { font-family: var(--sans); color: var(--ink-soft); font-size: 14px; text-align: center; padding: 24px 0; }
+
+  .saved-list { display: flex; flex-direction: column; gap: 8px; }
+  .saved-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    font-family: var(--sans); font-size: 13px; padding: 9px 12px;
+    background: #fff; border: 1px solid var(--paper-line); border-radius: 4px;
+  }
+  .saved-item .meta { color: var(--ink-soft); font-size: 12px; }
+  .saved-actions { display: flex; gap: 6px; }
+
+  footer { text-align: center; font-family: var(--sans); font-size: 11.5px; color: var(--ink-soft); margin-top: 22px; line-height: 1.7; }
+
+  @media (max-width:480px){
+    h1 { font-size: 26px; }
+    .field.name, .field.category { flex-basis: 100%; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header><h1>Recipe Scaler</h1></header>
+  <header>
+    <div class="eyebrow">Personal recipe tool</div>
+    <h1>Recipe Scaler</h1>
+    <div class="sub">Paste or enter your original recipe, scale it down, ease off the sugar, hit an exact piece count, and save it for next time.</div>
+  </header>
+
   <div class="card">
-    <h2>Paste original recipe</h2>
-    <textarea id="pasteBox" placeholder="Paste ingredients here..."></textarea>
-    <div style="margin-top:10px;">
+    <h2>Original Recipe URL (optional)</h2>
+    <div class="card-note">Save the original recipe link for future reference.</div>
+    <input type="url" id="recipeUrl" placeholder="https://example.com/recipe" style="width:100%;padding:10px;border:1px solid var(--paper-line);border-radius:3px;background:#fff;color:var(--ink);font-family:var(--sans);font-size:14px;">
+  </div>
+
+  <div class="card">
+    <h2>Paste original recipe (optional)</h2>
+    <div class="card-note">Copy the full recipe text (ingredients + method + oven temp/time) from wherever you found it and paste it here, then click "Extract automatically."</div>
+    <textarea id="pasteBox" placeholder="Paste the full recipe text here..."></textarea>
+    <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
       <button class="btn" id="extractBtn">Extract automatically</button>
-      <button class="btn secondary" id="clearBtn">Clear</button>
+      <button class="btn secondary" id="clearBtn">🗑 Clear</button>
       <span id="extractStatus" class="status-msg"></span>
     </div>
   </div>
+
   <div class="card">
-    <h2>Ingredients</h2>
+    <h2>Ingredients (original recipe)</h2>
     <div id="rows"></div>
+    <button class="add-row-btn" id="addRowBtn">+ Add ingredient</button>
   </div>
+
   <div class="card">
-    <h2>Results</h2>
+    <h2>Method / baking notes</h2>
+    <div class="card-note">Oven temperature, bake time, pan tapping, resting/chilling time, and anything else worth remembering — type it in yourself, or let the extractor summarize it from the pasted recipe above.</div>
+    <textarea id="notesBox" placeholder="e.g. Bake at 175°C (350°F) for 12–14 minutes. Chill dough 30 min before baking. Tap the tray once gently after removing from the oven."></textarea>
+  </div>
+
+  <div class="card">
+    <h2>Choose a scale</h2>
+    <div class="card-note">Scales the whole recipe (this is separate from the sugar-only reduction below).</div>
+    <div class="scale-pills" id="pills"></div>
+    <div class="custom-scale">
+      Custom percentage:
+      <input type="number" id="customPct" min="1" max="500" step="1" placeholder="e.g. 40">
+      <span>%</span>
+    </div>
+    <div class="scale-readout" id="scaleReadout">100<span> %</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Calculate from a piece count</h2>
+    <div class="card-note">e.g. want 5 cookies at 40 g each? The scale factor is worked out directly from the original recipe.</div>
+    <div class="weight-calc">
+      <div class="field"><label>Number of pieces</label><input type="number" id="pieceCount" min="1" step="1" value="5"></div>
+      <div class="field"><label>Weight per piece (g)</label><input type="number" id="pieceWeight" min="1" step="any" value="40"></div>
+      <div class="field"><label>&nbsp;</label><button class="btn" id="applyWeightBtn">Apply this scale</button></div>
+      <div class="total-readout" id="totalReadout">Target total = 200 g</div>
+    </div>
+
+    <div style="border-top:1px dashed var(--paper-line); margin-top:16px; padding-top:14px;">
+      <div class="card-note" style="margin-bottom:10px;">Bake time for your size (optional) — filled in automatically after extracting a recipe above, or enter it yourself.</div>
+      <div class="weight-calc">
+        <div class="field"><label>Original bake time (min)</label><input type="number" id="origBakeTime" min="1" step="any" placeholder="e.g. 13"></div>
+        <div class="field"><label>Original piece weight (g)</label><input type="number" id="origPieceWeight" min="1" step="any" placeholder="e.g. 50"></div>
+      </div>
+      <div class="total-readout" id="bakeTimeEstimate" style="margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Results after scaling</h2>
     <table>
-      <thead><tr><th>Ingredient</th><th class="num">Original</th><th class="num">Scaled</th></tr></thead>
+      <thead>
+        <tr><th>Ingredient</th><th class="num">Original (g)</th><th class="num">Scaled (g)</th></tr>
+      </thead>
       <tbody id="resultsBody"></tbody>
     </table>
+    <div id="emptyMsg" class="empty-msg" style="display:none;">Add an ingredient above to start calculating.</div>
   </div>
+
+  <div class="card">
+    <h2>Save recipe</h2>
+    <div class="card-note">Save your recipes securely on the cloud.</div>
+    <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+      <input type="text" id="recipeNameInput" placeholder="Name this recipe, e.g. Chocolate chip cookies" style="flex:1; min-width:180px; padding:9px 10px; border:1px solid var(--paper-line); border-radius:3px; font-family:var(--sans); font-size:14px;">
+      <button class="btn" id="saveBtn">Save this recipe</button>
+      <button class="btn secondary" id="saveChangesBtn" style="display:none;">💾 Save Changes</button>
+    </div>
+    <div id="saveStatus" class="status-msg"></div>
+    <div id="savedList" class="saved-list" style="margin-top:12px;"></div>
+  </div>
+
+  <footer>
+    Density values and standard egg weights are approximations. For best accuracy, weigh your original ingredients on a real scale to double-check.<br>
+    Type a number directly into any "Scaled (g)" box to set a target for that ingredient — the whole recipe will rescale to match that ratio.
+  </footer>
 </div>
 
 <script>
+const DENSITY = {
+  "All-purpose flour": 120, "Cake flour": 114, "Bread flour": 127, "Granulated sugar": 200,
+  "Brown sugar, packed": 220, "Powdered sugar": 120, "Butter": 227, "Vegetable oil": 218,
+  "Cocoa powder": 90, "Milk": 240, "Water": 240, "Heavy cream": 240, "Honey": 340,
+  "Maple syrup": 322, "Rolled oats": 90, "Chocolate chips": 170, "Chopped nuts": 120,
+  "Salt": 288, "Baking soda": 220, "Baking powder": 192, "Vanilla extract": 208,
+  "Ground cinnamon": 125, "Cornstarch": 128, "Yeast": 150, "Lemon juice": 240,
+  "Coffee": 240, "Espresso": 240, "Buttermilk": 240, "Coconut milk": 240, "Coconut cream": 240, "Other / Custom": null
+};
+
+const LIQUID_DENSITY = {
+  "Milk":1.03, "Whole milk":1.03, "Low fat milk":1.03, "Skim milk":1.035, "Buttermilk":1.03,
+  "Evaporated milk":1.06, "Condensed milk":1.28, "Heavy cream":1.02, "Double cream":1.01,
+  "Whipping cream":1.01, "Sour cream":0.98, "Greek yogurt":1.08, "Yogurt":1.03,
+  "Coconut milk":1.02, "Coconut cream":0.97, "Water":1.00, "Vanilla extract":0.95,
+  "Vanilla paste":1.10, "Lemon juice":1.03, "Coffee":1.00, "Espresso":1.01,
+  "Vegetable oil":0.92, "Canola oil":0.92, "Olive oil":0.91, "Melted butter":0.96,
+  "Honey":1.42, "Maple syrup":1.32, "Corn syrup":1.48, "Glucose syrup":1.54, "Molasses":1.40
+};
+
+const SUGAR_CATEGORIES = ["Granulated sugar", "Brown sugar, packed"];
+const WEIGHT_UNIT_G = { "g": 1, "kg": 1000, "oz": 28.3495 };
+const EGG_PARTS = {
+  "Small (S, ~38g)":       {whole:38, yolk:14, white:24},
+  "Medium (M, ~44g)":      {whole:44, yolk:16, white:28},
+  "Large (L, ~50g)":       {whole:50, yolk:18, white:32},
+  "Extra-large (XL, ~56g)":{whole:56, yolk:20, white:36}
+};
+const EGG_G = Object.fromEntries(Object.entries(EGG_PARTS).map(([k,v])=>[k,v.whole]));
+const SUGAR_REDUCTION_PRESETS = [0,10,15,20,25,30];
+
 let ingredients = [];
+let scalePct = 100;
+let scaleMode = 'pct';
+let overrideRowId = null;
+let rowOverrides = {};
+let totalTargetGrams = null;
+let lastTotalOrigGrams = null;
+let recipeOvenTempC = null;
+let editingKey = null;
+
 function uid(){ return 'r'+Math.random().toString(36).slice(2,9); }
+function isSugarRow(row){ return SUGAR_CATEGORIES.includes(row.category); }
+function round1(n){ return Math.round(n*10)/10; }
 
 function parseAmount(str) {
-  if(!str) return 0;
-  const fractions = {'½':0.5, '¼':0.25, '¾':0.75, '⅓':0.33, '⅕':0.2};
-  str = str.replace(/[½¼¾⅓⅕]/g, m => fractions[m]);
-  return parseFloat(str) || 0;
+  if(str==null) return NaN;
+  str = String(str).trim();
+  if(str==='') return NaN;
+  let m = str.match(/^(\d+)[\s-]+(\d+)\/(\d+)$/);
+  if(m) return parseInt(m[1],10) + parseInt(m[2],10)/parseInt(m[3],10);
+  m = str.match(/^(\d+)\/(\d+)$/);
+  if(m) return parseInt(m[1],10)/parseInt(m[2],10);
+  const f = parseFloat(str);
+  return isNaN(f) ? NaN : f;
 }
 
-document.getElementById('extractBtn').addEventListener('click', function(){
-  const rawText = document.getElementById('pasteBox').value;
-  const lines = rawText.split('\n');
-  ingredients = [];
+const CATEGORY_RULES = [
+  ['brown sugar', 'Brown sugar, packed'], ['powdered sugar', 'Powdered sugar'],
+  ['icing sugar', 'Powdered sugar'], ['confectioner', 'Powdered sugar'],
+  ['granulated sugar', 'Granulated sugar'], ['white sugar', 'Granulated sugar'],
+  ['caster sugar', 'Granulated sugar'], ['sugar', 'Granulated sugar'],
+  ['cake flour', 'Cake flour'], ['bread flour', 'Bread flour'],
+  ['all-purpose flour', 'All-purpose flour'], ['all purpose flour', 'All-purpose flour'],
+  ['plain flour', 'All-purpose flour'], ['flour', 'All-purpose flour'],
+  ['butter', 'Butter'], ['vegetable oil', 'Vegetable oil'],
+  ['canola oil', 'Vegetable oil'], ['oil', 'Vegetable oil'],
+  ['cocoa', 'Cocoa powder'], ['heavy cream', 'Heavy cream'],
+  ['whipping cream', 'Heavy cream'], ['double cream', 'Heavy cream'],
+  ['milk', 'Milk'], ['water', 'Water'], ['honey', 'Honey'],
+  ['maple', 'Maple syrup'], ['oat', 'Rolled oats'],
+  ['chocolate chip', 'Chocolate chips'], ['choc chip', 'Chocolate chips'],
+  ['walnut', 'Chopped nuts'], ['pecan', 'Chopped nuts'],
+  ['almond', 'Chopped nuts'], ['hazelnut', 'Chopped nuts'],
+  ['nuts', 'Chopped nuts'], ['baking soda', 'Baking soda'],
+  ['bicarbonate of soda', 'Baking soda'], ['baking powder', 'Baking powder'],
+  ['salt', 'Salt'], ['vanilla', 'Vanilla extract'],
+  ['cinnamon', 'Ground cinnamon'], ['corn starch', 'Cornstarch'],
+  ['cornstarch', 'Cornstarch'], ['cornflour', 'Cornstarch'],
+  ['yeast', 'Yeast'], ['lemon juice', 'Lemon juice'],
+  ['buttermilk','Buttermilk'],['whole milk','Milk'],['skim milk','Milk'],
+  ['low fat milk','Milk'],['greek yogurt','Other / Custom'],
+  ['yogurt','Other / Custom'],['sour cream','Other / Custom'],
+  ['evaporated milk','Other / Custom'],['condensed milk','Other / Custom'],
+  ['coconut milk','Coconut milk'],['coconut cream','Coconut cream'],
+  ['olive oil','Vegetable oil'],['canola oil','Vegetable oil'],
+  ['corn syrup','Other / Custom'],['glucose syrup','Other / Custom'],
+  ['molasses','Other / Custom'],['espresso','Espresso'],
+  ['coffee','Coffee'],['melted butter','Butter']
+];
 
-  lines.forEach(line => {
-    if(line.trim() === '') return;
-    
-    // Regex จับ: [จำนวน] [หน่วย] [ชื่อ]
-    // ปรับปรุง: รองรับ tsp, tbsp, cup, g, oz, ml
-    const regex = /^([\d\/\.\s½¼¾⅓⅕]+)\s*(teaspoon|tsp\.?|tablespoon|tbsp\.?|cup|cups?|grams?|g|oz|ounces?|ml)?\s*(.*)$/i;
-    const match = line.trim().match(regex);
-    
-    if(match) {
-        ingredients.push({
-            id: uid(),
-            amount: parseAmount(match[1].trim()),
-            unit: match[2] ? match[2].toLowerCase().replace('teaspoon', 'tsp').replace('tablespoon', 'tbsp') : 'g',
-            name: match[3] ? match[3].trim() : 'Ingredient'
-        });
-    }
-  });
+function detectCategory(name){
+  const n = (name||'').toLowerCase();
+  for(const [kw, cat] of CATEGORY_RULES){
+    const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    if(new RegExp('\\b'+escaped+'\\b').test(n)) return cat;
+  }
+  return null;
+}
+
+function detectEggPart(name){
+  const n = (name||'').toLowerCase();
+  if(/\byolk/.test(n)) return 'yolk';
+  if(/\bwhite/.test(n)) return 'white';
+  return 'whole';
+}
+
+function addRow(prefill){
+  ingredients.push(Object.assign({
+    id: uid(), name:'', category:'All-purpose flour', amount:'', unit:'cup',
+    customGpc:'', eggSize:'Large (L, ~50g)', sugarReduction:0
+  }, prefill||{}));
   renderRows();
-});
-
-function renderRows() {
-  const container = document.getElementById('rows');
-  container.innerHTML = '';
-  ingredients.forEach(row => {
-    const div = document.createElement('div');
-    div.className = 'ing-card';
-    div.innerHTML = `${row.amount} ${row.unit} ${row.name}`;
-    container.appendChild(div);
-  });
   renderResults();
 }
 
-function renderResults() {
-  const body = document.getElementById('resultsBody');
-  body.innerHTML = '';
-  ingredients.forEach(row => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${row.name}</td><td class="num">${row.amount} ${row.unit}</td><td class="num result">${row.amount} ${row.unit}</td>`;
-    body.appendChild(tr);
+function removeRow(id){
+  ingredients = ingredients.filter(r=>r.id!==id);
+  if(overrideRowId===id){ overrideRowId=null; scaleMode='pct'; }
+  renderRows();
+  renderResults();
+}
+
+function unitOptionsFor(category){
+  if(category === "Other / Custom") return ["g","kg","oz","cup","tbsp","tsp","ml","egg"];
+  return ["cup","tbsp","tsp","ml","g","kg","oz","egg"];
+}
+
+function gramsPerCup(row){
+  if(row.category === "Other / Custom") return row.customGpc ? parseFloat(row.customGpc) : null;
+  return DENSITY[row.category];
+}
+
+function originalGrams(row){
+  const amt = parseAmount(row.amount);
+  if(isNaN(amt)) return null;
+  if(row.unit==='egg') return amt * EGG_PARTS[row.eggSize][detectEggPart(row.name)];
+  if(WEIGHT_UNIT_G[row.unit]) return amt * WEIGHT_UNIT_G[row.unit];
+  const gpc = gramsPerCup(row);
+  if(gpc==null || isNaN(gpc)) return null;
+  if(row.unit==='cup') return amt * gpc;
+  if(row.unit==='tbsp') return amt * (gpc/16);
+  if(row.unit==='tsp') return amt * (gpc/48);
+  if(row.unit==='ml'){
+    const d=LIQUID_DENSITY[row.category];
+    return d? amt*d:null;
+  }
+  return null;
+}
+
+function effectiveOrig(row, orig){
+  if(isSugarRow(row)){
+    const red = parseFloat(row.sugarReduction)||0;
+    return orig * (1 - red/100);
+  }
+  return orig;
+}
+
+function renderRows(){
+  const box = document.getElementById('rows');
+  box.innerHTML = '';
+  ingredients.forEach(row=>{
+    row.category = detectCategory(row.name) || 'Other / Custom';
+
+    const card = document.createElement('div');
+    card.className='ing-card';
+
+    const fields = document.createElement('div');
+    fields.className='ing-fields';
+
+    const nameField = document.createElement('div'); nameField.className='field name';
+    nameField.innerHTML = '<label>Ingredient</label>';
+    const nameInput = document.createElement('input');
+    nameInput.type='text'; nameInput.placeholder='e.g. all-purpose flour';
+    nameInput.value=row.name;
+    nameField.appendChild(nameInput);
+    const hintEl = document.createElement('div');
+    hintEl.style.fontSize='11px'; hintEl.style.color='var(--ink-soft)'; hintEl.style.marginTop='2px';
+    nameField.appendChild(hintEl);
+
+    const amtField = document.createElement('div'); amtField.className='field amount';
+    amtField.innerHTML = '<label>Amount</label>';
+    const amtInput = document.createElement('input');
+    amtInput.type='text'; amtInput.inputMode='decimal';
+    amtInput.value=row.amount; amtInput.placeholder='e.g. 3/4';
+    amtInput.oninput=e=>{ row.amount=e.target.value; renderResults(); };
+    amtField.appendChild(amtInput);
+
+    const unitField = document.createElement('div'); unitField.className='field unit';
+    unitField.innerHTML = '<label>Unit</label>';
+    const baseUnitSelect = document.createElement('select');
+    unitOptionsFor(row.category).forEach(u=>{
+      const opt=document.createElement('option'); opt.value=u;
+      opt.textContent = u==='egg' ? 'egg' : u;
+      if(u===row.unit) opt.selected=true;
+      baseUnitSelect.appendChild(opt);
+    });
+    baseUnitSelect.onchange=e=>{ row.unit=e.target.value; renderRows(); renderResults(); };
+    unitField.appendChild(baseUnitSelect);
+
+    fields.appendChild(nameField);
+    fields.appendChild(amtField);
+    fields.appendChild(unitField);
+
+    if(row.unit==='egg'){
+      const eggField = document.createElement('div'); eggField.className='field eggsize';
+      eggField.innerHTML = '<label>Egg size</label>';
+      const eggSizeSelect = document.createElement('select');
+      Object.keys(EGG_G).forEach(k=>{
+        const opt=document.createElement('option'); opt.value=k; opt.textContent=k;
+        if(k===row.eggSize) opt.selected=true;
+        eggSizeSelect.appendChild(opt);
+      });
+      eggSizeSelect.onchange=e=>{ row.eggSize=e.target.value; updateDynamic(); };
+      eggField.appendChild(eggSizeSelect);
+      fields.appendChild(eggField);
+    }
+
+    const delField = document.createElement('div'); delField.className='field delete';
+    const delBtn = document.createElement('button');
+    delBtn.className='del-btn'; delBtn.innerHTML='✕'; delBtn.title='Remove this ingredient';
+    delBtn.onclick=()=>removeRow(row.id);
+    delField.appendChild(delBtn);
+    fields.appendChild(delField);
+
+    fields.appendChild(delField);
+    card.appendChild(fields);
+
+    const gpcSubRow = document.createElement('div');
+    gpcSubRow.className='sub-row';
+    gpcSubRow.innerHTML = `No match found — grams per 1 cup of this ingredient: `;
+    const gInput = document.createElement('input');
+    gInput.type='number'; gInput.step='any'; gInput.className='gpc'; gInput.value=row.customGpc;
+    gInput.placeholder='e.g. 200';
+    gInput.oninput=e=>{ row.customGpc=e.target.value; renderResults(); };
+    gpcSubRow.appendChild(gInput);
+    card.appendChild(gpcSubRow);
+
+    const sugarSubRow = document.createElement('div');
+    sugarSubRow.className='sub-row';
+    const label = document.createElement('span');
+    label.innerHTML = 'Extra sugar reduction <span class="sugar-tag">sugar only</span>:';
+    sugarSubRow.appendChild(label);
+    SUGAR_REDUCTION_PRESETS.forEach(p=>{
+      const btn=document.createElement('button');
+      btn.type='button'; btn.className='mini-pill'+(parseFloat(row.sugarReduction)===p?' active':'');
+      btn.textContent = p+'%';
+      btn.onclick=()=>{ row.sugarReduction=p; renderRows(); renderResults(); };
+      sugarSubRow.appendChild(btn);
+    });
+    const customLabel=document.createElement('span'); customLabel.textContent='Custom:';
+    sugarSubRow.appendChild(customLabel);
+    const customInput = document.createElement('input');
+    customInput.type='number'; customInput.min='0'; customInput.max='90'; customInput.step='any';
+    customInput.className='mini-num';
+    customInput.value = SUGAR_REDUCTION_PRESETS.includes(parseFloat(row.sugarReduction)) ? '' : row.sugarReduction;
+    customInput.placeholder='%';
+    customInput.oninput=e=>{
+      const v=parseFloat(e.target.value);
+      if(!isNaN(v)){ row.sugarReduction=v; renderRows(); renderResults(); }
+    };
+    sugarSubRow.appendChild(customInput);
+    card.appendChild(sugarSubRow);
+
+    function updateDynamic(){
+      row.category = detectCategory(row.name) || 'Other / Custom';
+      const isVolumeUnit = ['cup','tbsp','tsp','ml'].includes(row.unit);
+      if(row.unit==='egg'){
+        const part = detectEggPart(row.name);
+        const partLabel = part==='yolk' ? 'yolk only' : part==='white' ? 'white only' : 'whole egg';
+        const g = EGG_PARTS[row.eggSize][part];
+        hintEl.textContent = `Detected: ${partLabel} — ${g} g each (${row.eggSize.split(' (')[0]})`;
+      } else if(isVolumeUnit && row.category==='Other / Custom'){
+        hintEl.textContent = row.name.trim() ? "No match — enter grams per cup below." : '';
+      } else if(isVolumeUnit){
+        if(row.unit==='ml') {
+          const d=LIQUID_DENSITY[row.category];
+          hintEl.textContent = `Detected: ${row.category} (Density: ${d} g/ml)`;
+        } else {
+          hintEl.textContent = `Detected: ${row.category} (${DENSITY[row.category]} g/cup)`;
+        }
+      } else {
+        hintEl.textContent = '';
+      }
+      gpcSubRow.style.display = (['cup','tbsp','tsp'].includes(row.unit) && row.category==='Other / Custom') ? 'flex' : 'none';
+      sugarSubRow.style.display = isSugarRow(row) ? 'flex' : 'none';
+      renderResults();
+    }
+    nameInput.oninput = e=>{ row.name=e.target.value; updateDynamic(); };
+    updateDynamic();
+
+    box.appendChild(card);
   });
 }
 
-document.getElementById('clearBtn').onclick = () => { ingredients=[]; renderRows(); document.getElementById('pasteBox').value=''; };
+function renderPills(){
+  const presets = [100,90,85,75,50,33,25];
+  const box = document.getElementById('pills');
+  box.innerHTML='';
+  presets.forEach(p=>{
+    const btn=document.createElement('button');
+    btn.className='pill'+(scaleMode==='pct' && scalePct===p ? ' active':'');
+    btn.textContent = p+'%';
+    btn.onclick=()=>{
+      scalePct=p; scaleMode='pct'; overrideRowId=null;
+      document.getElementById('customPct').value='';
+      renderPills(); renderResults();
+    };
+    box.appendChild(btn);
+  });
+}
+
+document.getElementById('customPct').addEventListener('input', e=>{
+  const v = parseFloat(e.target.value);
+  if(!isNaN(v) && v>0){
+    scalePct=v; scaleMode='pct'; overrideRowId=null;
+    renderPills(); renderResults();
+  }
+});
+
+function updateTotalReadout(){
+  const pc = parseFloat(document.getElementById('pieceCount').value)||0;
+  const pw = parseFloat(document.getElementById('pieceWeight').value)||0;
+  document.getElementById('totalReadout').textContent = `Target total = ${round1(pc*pw)} g`;
+  updateBakeTimeEstimate();
+}
+document.getElementById('pieceCount').addEventListener('input', updateTotalReadout);
+document.getElementById('pieceWeight').addEventListener('input', updateTotalReadout);
+document.getElementById('origBakeTime').addEventListener('input', updateBakeTimeEstimate);
+document.getElementById('origPieceWeight').addEventListener('input', updateBakeTimeEstimate);
+
+function updateBakeTimeEstimate(){
+  const el = document.getElementById('bakeTimeEstimate');
+  const targetWeight = parseFloat(document.getElementById('pieceWeight').value);
+  const origTime = parseFloat(document.getElementById('origBakeTime').value);
+  const origWeight = parseFloat(document.getElementById('origPieceWeight').value);
+
+  if(isNaN(targetWeight) || isNaN(origTime) || isNaN(origWeight) || targetWeight<=0 || origTime<=0 || origWeight<=0){
+    el.textContent = '';
+    return;
+  }
+  const estMinutes = origTime * Math.pow(targetWeight/origWeight, 2/3);
+  const tempStr = recipeOvenTempC!=null ? ` at ${Math.round(recipeOvenTempC)}°C` : '';
+  el.innerHTML = `Estimated bake time: <strong>~${Math.round(estMinutes)} min</strong>${tempStr} for ${targetWeight}g pieces ` +
+    `<span style="color:var(--ink-soft); font-size:12px;">(original: ${origWeight}g → ${origTime} min — start checking early)</span>`;
+}
+
+document.getElementById('applyWeightBtn').addEventListener('click', GrandmaScale);
+function GrandmaScale(){
+  const pc = parseFloat(document.getElementById('pieceCount').value);
+  const pw = parseFloat(document.getElementById('pieceWeight').value);
+  if(isNaN(pc) || isNaN(pw) || pc<=0 || pw<=0) return;
+  totalTargetGrams = pc*pw;
+  scaleMode='total';
+  overrideRowId=null;
+  renderResults();
+}
+
+function renderResults(){
+  const body = document.getElementById('resultsBody');
+  body.innerHTML='';
+  const emptyMsg = document.getElementById('emptyMsg');
+
+  const namedRows = ingredients.filter(r=>r.name.trim()!=='');
+  const rowsData = namedRows.map(r=>({row:r, orig: originalGrams(r)}));
+  const validRows = rowsData.filter(d=>d.orig!=null);
+  const incompleteRows = rowsData.filter(d=>d.orig==null);
+
+  if(namedRows.length===0){
+    emptyMsg.style.display='block';
+    document.getElementById('scaleReadout').innerHTML = Math.round(scalePct)+'<span> %</span>';
+    return;
+  }
+  emptyMsg.style.display='none';
+
+  const withEff = validRows.map(d=>({...d, eff: effectiveOrig(d.row, d.orig)}));
+
+  let factor;
+  if(scaleMode==='row' && overrideRowId){
+    const target = rowOverrides[overrideRowId];
+    const baseRow = withEff.find(d=>d.row.id===overrideRowId);
+    if(baseRow && target!=null && !isNaN(target) && baseRow.eff>0){
+      factor = target / baseRow.eff;
+    } else { factor = scalePct/100; }
+  } else if(scaleMode==='total' && totalTargetGrams!=null){
+    const sumEff = withEff.reduce((s,d)=>s+d.eff,0);
+    factor = sumEff>0 ? totalTargetGrams/sumEff : 1;
+  } else {
+    factor = scalePct/100;
+  }
+  scalePct = factor*100;
+
+  document.getElementById('scaleReadout').innerHTML =
+    (Math.abs(scalePct-Math.round(scalePct))<0.05 ? Math.round(scalePct) : scalePct.toFixed(1)) + '<span> % of original</span>';
+
+  let totalOrig=0, totalScaled=0;
+
+  withEff.forEach(({row, orig, eff}) => {
+    const scaled = eff*factor;
+    totalOrig += orig;
+    totalScaled += scaled;
+
+    const tr = document.createElement('tr');
+    const tdName = document.createElement('td');
+    tdName.textContent = row.name + (isSugarRow(row) && parseFloat(row.sugarReduction)>0 ? ` (−${row.sugarReduction}% sugar)` : '');
+
+    const tdOrig = document.createElement('td');
+    tdOrig.className='num orig';
+    tdOrig.textContent = orig.toFixed(1)+' g';
+
+    const tdResult = document.createElement('td');
+    tdResult.className='num result';
+    const input = document.createElement('input');
+    input.type='number'; input.step='any'; input.className='target-input';
+    input.value = round1(scaled);
+    input.oninput=(e)=>{
+      overrideRowId = row.id;
+      scaleMode='row';
+      rowOverrides[row.id] = parseFloat(e.target.value);
+      renderResults();
+    };
+    tdResult.appendChild(input);
+    const gLabel = document.createElement('span');
+    gLabel.style.marginLeft='4px'; gLabel.style.fontFamily='var(--sans)'; gLabel.style.fontSize='12px'; gLabel.style.color='var(--ink-soft)';
+    gLabel.textContent='g';
+    tdResult.appendChild(gLabel);
+
+    tr.appendChild(tdName); tr.appendChild(tdOrig); tr.appendChild(tdResult);
+    body.appendChild(tr);
+  });
+
+  incompleteRows.forEach(({row})=>{
+    const tr = document.createElement('tr');
+    tr.className='warn-row';
+    const td = document.createElement('td');
+    td.colSpan = 3;
+    td.textContent = `⚠ "${row.name}" is missing conversion info.`;
+    tr.appendChild(td);
+    body.appendChild(tr);
+  });
+
+  const totalTr = document.createElement('tr');
+  totalTr.className='total-row';
+  totalTr.innerHTML = `<td>Total</td><td class="num">${totalOrig.toFixed(1)} g</td><td class="num">${totalScaled.toFixed(1)} g</td>`;
+  body.appendChild(totalTr);
+
+  lastTotalOrigGrams = totalOrig;
+  renderPills();
+}
+
+document.getElementById('extractBtn').addEventListener('click', function(){
+  const rawText = document.getElementById('pasteBox').value.trim();
+  const statusEl = document.getElementById('extractStatus');
+  if(!rawText){ statusEl.textContent='กรุณาวางสูตรก่อนกดปุ่มค่ะ'; statusEl.className='status-msg err'; return; }
+
+  statusEl.textContent='กำลังแกะสูตร...';
+
+  // ฟังก์ชันแปลงเศษส่วนพิเศษ (เช่น ½, ⅓, ¼)
+  const parseUnicodeFraction = (str) => {
+    const fractions = {'½': 0.5, '⅓': 0.333, '¼': 0.25, '¾': 0.75, '⅕': 0.2, '⅙': 0.166, '⅛': 0.125};
+    return str.replace(/[½⅓¼¾⅕⅙⅛]/g, match => fractions[match] || match);
+  };
+
+  let localNotes = [];
+  const text = parseUnicodeFraction(rawText)
+    .replace(/\s+(?:plus|and|และ)\s+(?=\d)/gi, '\n')
+    .replace(/\s*\+\s*(?=\d)/g, '\n');
+
+  const lines = text.split('\n');
+  
+  let loadedCount = 0;
+  let newIngredients = [];
+
+  lines.forEach(line => {
+    let cleanLine = line.trim().replace(/^[\u25A0-\u25FF\*\-\+\s•▢]+/g, '').trim();
+    if(!cleanLine) return;
+
+    // Regex ใหม่: รองรับทั้ง [เลข] [หน่วย] [ชื่อ] และกรณีมีวงเล็บกรัม
+    const regex = /^([\d\/\.\s]+)\s*(grams?|g|กรัม|oz|ounces?|ounce|ml|milliliters?|cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา|eggs?|egg|ฟอง)?\s*(.*)$/i;
+    
+    // ตรวจสอบวงเล็บกรัมก่อน (Case 1: มี (293 g) ต่อท้าย)
+    const gramInParen = cleanLine.match(/\(([\d\.]+)\s*(?:g|grams?|กรัม)\)/i);
+    
+    let amt = null, unit = 'g', name = cleanLine;
+
+    if (gramInParen) {
+        amt = parseFloat(gramInParen[1]);
+        unit = 'g';
+        // พยายามตัดส่วนที่เป็นวงเล็บออกเพื่อหาชื่อ
+        name = cleanLine.replace(/\([\d\.]+\s*(?:g|grams?|กรัม)\)/i, '').trim();
+    } else {
+        const match = cleanLine.match(regex);
+        if (match) {
+            amt = parseAmount(match[1]); 
+            unit = match[2] ? match[2].toLowerCase() : 'g';
+            name = match[3] ? match[3].trim() : (match[2] ? '' : match[1]); 
+        }
+    }
+
+    if (amt !== null && !isNaN(amt)) {
+        let finalUnit = 'g';
+        if (unit.includes('cup') || unit.includes('ถ้วย')) finalUnit = 'cup';
+        else if (unit.includes('tbsp') || unit.includes('ช้อนโต๊ะ')) finalUnit = 'tbsp';
+        else if (unit.includes('tsp') || unit.includes('ช้อนชา')) finalUnit = 'tsp';
+        else if (unit.includes('ml')) finalUnit = 'ml';
+        else if (unit.includes('egg') || unit.includes('ฟอง')) finalUnit = 'egg';
+        else if (unit.includes('oz') || unit.includes('ounce')) finalUnit = 'oz';
+        else finalUnit = 'g';
+
+        newIngredients.push({
+            id: uid(), name: name, category: detectCategory(name) || 'Other / Custom',
+            amount: amt, unit: finalUnit, customGpc: '', eggSize: 'Large (L, ~50g)', sugarReduction: 0
+        });
+        loadedCount++;
+    }
+  });
+
+  if(newIngredients.length > 0) {
+    ingredients = newIngredients;
+    renderRows();
+    renderResults();
+  }
+
+  statusEl.textContent = `วิเคราะห์สำเร็จ! ได้วัตถุดิบ ${loadedCount} รายการ`;
+  statusEl.className='status-msg ok';
+});
+
+function currentRecipeData(){
+  return {
+    recipeUrl: document.getElementById('recipeUrl') ? document.getElementById('recipeUrl').value : '',
+    ingredients: ingredients.map(({id,...rest})=>rest),
+    notes: document.getElementById('notesBox').value,
+    ovenTempC: recipeOvenTempC,
+    origBakeTime: document.getElementById('origBakeTime').value,
+    origPieceWeight: document.getElementById('origPieceWeight').value,
+    savedAt: new Date().toISOString()
+  };
+}
+
+async function refreshSavedList(){
+  const listEl = document.getElementById('savedList');
+  if(!listEl) return;
+  listEl.innerHTML = '';
+  try{
+    const keys = await safeStorage.listPrefix();
+    if(keys.length===0){
+      listEl.innerHTML = '<div class="status-msg">No saved recipes yet.</div>';
+      return;
+    }
+    for(const key of keys){
+      let rawVal = await safeStorage.get(key);
+      if(!rawVal) continue;
+      let data = JSON.parse(rawVal);
+      if(!data) continue;
+
+      const item = document.createElement('div');
+      item.className='saved-item';
+      const label = key.replace(/^recipe:/,'').replace(/-\d+$/,'');
+      const dateStr = data.savedAt ? new Date(data.savedAt).toLocaleString() : '';
+      item.innerHTML = `<div><div>${label}</div><div class="meta">${dateStr} · ${(data.ingredients||[]).length} ingredient(s)</div></div>`;
+      
+      const actions = document.createElement('div');
+      actions.className='saved-actions';
+
+      const loadBtn = document.createElement('button');
+      loadBtn.className='btn secondary small'; loadBtn.textContent='Open';
+      loadBtn.onclick=()=>{
+        editingKey = key;
+        document.getElementById('saveChangesBtn').style.display='inline-block';
+        document.getElementById('recipeNameInput').value=label;
+        ingredients = (data.ingredients||[]).map(ing=>Object.assign({id:uid()}, ing));
+        if(document.getElementById('recipeUrl')) document.getElementById('recipeUrl').value = data.recipeUrl || '';
+        document.getElementById('notesBox').value = data.notes || '';
+        recipeOvenTempC = (typeof data.ovenTempC === 'number') ? data.ovenTempC : null;
+        document.getElementById('origBakeTime').value = data.origBakeTime || '';
+        document.getElementById('origPieceWeight').value = data.origPieceWeight || '';
+        scaleMode='pct'; scalePct=100; overrideRowId=null;
+        renderRows(); renderResults();
+        updateBakeTimeEstimate();
+        document.getElementById('saveStatus').textContent = `Opened recipe "${label}".`;
+        document.getElementById('saveStatus').className='status-msg ok';
+      };
+
+      const delBtn = document.createElement('button');
+      delBtn.className='btn danger small'; delBtn.textContent='Delete';
+      delBtn.onclick=async ()=>{
+        await safeStorage.delete(key);
+        refreshSavedList();
+      };
+
+      actions.appendChild(loadBtn); actions.appendChild(delBtn);
+      item.appendChild(actions);
+      listEl.appendChild(item);
+    }
+  }catch(err){
+    listEl.innerHTML = '<div class="status-msg err">Unable to load list.</div>';
+  }
+}
+
+document.getElementById('saveBtn').addEventListener('click', async ()=>{
+  const nameInput = document.getElementById('recipeNameInput');
+  const name = nameInput.value.trim();
+  const statusEl = document.getElementById('saveStatus');
+  if(!name){ statusEl.textContent='Name the recipe first.'; statusEl.className='status-msg err'; return; }
+  if(ingredients.length===0){ statusEl.textContent='No ingredients to save yet.'; statusEl.className='status-msg err'; return; }
+
+  try{
+    const key = `recipe:${name}-${Date.now()}`;
+    await safeStorage.set(key, JSON.stringify(currentRecipeData()));
+    statusEl.textContent = `Saved "${name}".`;
+    statusEl.className='status-msg ok';
+    nameInput.value='';
+    refreshSavedList();
+  }catch(err){
+    statusEl.textContent = 'Save failed.';
+    statusEl.className='status-msg err';
+  }
+});
+
+document.getElementById('saveChangesBtn').addEventListener('click', async ()=>{
+ if(!editingKey) return;
+ const statusEl=document.getElementById('saveStatus');
+ try{
+   await safeStorage.set(editingKey, JSON.stringify(currentRecipeData()));
+   statusEl.textContent='Changes saved.';
+   statusEl.className='status-msg ok';
+   refreshSavedList();
+ }catch(err){
+   statusEl.textContent='Update failed.';
+   statusEl.className='status-msg err';
+ }
+});
+
+document.getElementById('addRowBtn').addEventListener('click', function() {
+    addRow();
+});
+
+document.getElementById("clearBtn").addEventListener("click",function(){
+if(document.getElementById("recipeUrl")) document.getElementById("recipeUrl").value="";
+document.getElementById("pasteBox").value="";
+document.getElementById("notesBox").value="";
+document.getElementById("extractStatus").textContent="";
+document.getElementById("origBakeTime").value="";
+document.getElementById("origPieceWeight").value="";
+recipeOvenTempC=null;
+editingKey=null;document.getElementById('saveChangesBtn').style.display='none';ingredients=[];overrideRowId=null;rowOverrides={};totalTargetGrams=null;scalePct=100;scaleMode="pct";
+renderRows();renderResults();renderPills();updateBakeTimeEstimate();
+});
+
+addRow({name:'All-purpose flour', category:'All-purpose flour', amount:300, unit:'g'});
+addRow({name:'Butter', category:'Butter', amount:227, unit:'g'});
+addRow({name:'Granulated sugar', category:'Granulated sugar', amount:200, unit:'g'});
+addRow({name:'Egg', category:'Other / Custom', amount:2, unit:'egg', eggSize:'Large (L, ~50g)'});
+
+renderRows();
+renderPills();
+renderResults();
+updateTotalReadout();
+updateBakeTimeEstimate();
+
+setTimeout(() => {
+  refreshSavedList();
+}, 1000);
 </script>
 </body>
 </html>
