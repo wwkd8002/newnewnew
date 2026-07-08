@@ -808,10 +808,25 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     // เช่น "1 and 1/2 teaspoons cornstarch" ให้กลายเป็น "1 1/2 teaspoons cornstarch" ก่อน
     // ไม่เช่นนั้นจะถูกตัดออกเป็น 2 รายการผิดๆ คือ "1" กับ "1/2 teaspoons cornstarch"
     .replace(/(\d+)\s+(?:and|และ)\s+(\d+\/\d+)/gi, '$1 $2')
-    .replace(/\s+(?:plus|and|และ)\s+(?=\d)/gi, '\n')
+    .replace(/(\([^)]*\)|grams?|g\b)/gi,'$1')
+    // Don't split ingredient lines like "1 cup plus 6 tbsp (206g) flour"
+    .replace(/(?<!cups?)(?<!tbsp)(?<!tablespoons?)(?<!tsp)(?<!teaspoons?)\s+(?:plus|and|และ)\s+(?=\d)/gi,'\n')
     .replace(/\s*\+\s*(?=\d)/g, '\n');
 
-  const lines = text.split('\n');
+  
+  // Normalize egg combinations before splitting into lines.
+  // Example: "1 large egg + 1 yolk" becomes two ingredient lines.
+  let normalizedText=text
+    .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*eggs?\s*\+\s*(\d+)\s*yolks?/gi,
+      (m,a,size,b)=>`${a} ${size||'large'} egg\n${b} ${size||'large'} egg yolk`)
+    .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*eggs?\s*\+\s*(\d+)\s*whites?/gi,
+      (m,a,size,b)=>`${a} ${size||'large'} egg\n${b} ${size||'large'} egg white`)
+    .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*egg\s*\+\s*(\d+)\s*yolks?/gi,
+      (m,a,size,b)=>`${a} ${size||'large'} egg\n${b} ${size||'large'} egg yolk`)
+    .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*egg\s*\+\s*(\d+)\s*whites?/gi,
+      (m,a,size,b)=>`${a} ${size||'large'} egg\n${b} ${size||'large'} egg white`);
+
+const lines = normalizedText.split('\n');
   
   let loadedCount = 0;
   let newIngredients = [];
@@ -900,9 +915,9 @@ document.getElementById('extractBtn').addEventListener('click', function(){
                      .replace(/,?\s*beaten/ig,'')
                      .trim();
 
-            if(/egg\s*yolks?|yolks?/.test(eggText)){
+            if(/(?:egg\s*)?yolks?/.test(eggText)){
                 name='Egg yolk';
-            }else if(/egg\s*whites?|whites?/.test(eggText)){
+            }else if(/(?:egg\s*)?whites?/.test(eggText)){
                 name='Egg white';
             }else{
                 name='Egg';
