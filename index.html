@@ -774,7 +774,6 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
   let localNotes = [];
 
-  // เพิ่มการแยกบรรทัดทันทีหากเจอเครื่องหมายบวก (+) ที่คั่นระว่างวัตถุดิบที่มีตัวเลขกำกับ
   const text = rawText
     .replace(/\s+(?:plus|and|และ)\s+(?=\d)/gi, '\n')
     .replace(/\s*\+\s*(?=\d)/g, '\n');
@@ -888,6 +887,11 @@ document.getElementById('extractBtn').addEventListener('click', function(){
       else if(unitStr.includes('ml') || unitStr.includes('milliliter')) finalUnit = 'ml';
       else if(unitStr.includes('egg') || unitStr.includes('ฟอง')) finalUnit = 'egg';
       else if(unitStr === 'g' || unitStr.includes('gram') || unitStr.includes('กรัม')) finalUnit = 'g';
+
+      // แก้ไขปัญหาชื่อว่างเปล่าเมื่อข้อความคำว่า egg ถูกใช้เป็นหน่วยไปแล้ว
+      if (!nameStr && finalUnit === 'egg') {
+        nameStr = 'Egg';
+      }
 
       newIngredients.push({
         id: uid(), name: nameStr, category: detectCategory(nameStr) || 'Other / Custom',
