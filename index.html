@@ -320,18 +320,18 @@ const DENSITY = {
   "Cocoa powder": 90, "Milk": 240, "Water": 240, "Heavy cream": 240, "Honey": 340,
   "Maple syrup": 322, "Rolled oats": 90, "Chocolate chips": 170, "Chopped nuts": 120,
   "Salt": 288, "Baking soda": 220, "Baking powder": 192, "Vanilla extract": 208,
-  "Ground cinnamon": 125, "Cornstarch": 128, "Yeast": 150, "Lemon juice": 240,
-  "Coffee": 240, "Espresso": 240, "Buttermilk": 240, "Coconut milk": 240, "Coconut cream": 240, "Other / Custom": null
+  "Ground cinnamon": 125, "Cornstarch": 128, "Yeast": 150, "Lemon juice": 240, "Other / Custom": null
 };
 
 const LIQUID_DENSITY = {
-  "Milk":1.03, "Whole milk":1.03, "Low fat milk":1.03, "Skim milk":1.035, "Buttermilk":1.03,
-  "Evaporated milk":1.06, "Condensed milk":1.28, "Heavy cream":1.02, "Double cream":1.01,
-  "Whipping cream":1.01, "Sour cream":0.98, "Greek yogurt":1.08, "Yogurt":1.03,
-  "Coconut milk":1.02, "Coconut cream":0.97, "Water":1.00, "Vanilla extract":0.95,
-  "Vanilla paste":1.10, "Lemon juice":1.03, "Coffee":1.00, "Espresso":1.01,
-  "Vegetable oil":0.92, "Canola oil":0.92, "Olive oil":0.91, "Melted butter":0.96,
-  "Honey":1.42, "Maple syrup":1.32, "Corn syrup":1.48, "Glucose syrup":1.54, "Molasses":1.40
+  "Milk":1.03, "Whole milk":1.03, "Low fat milk":1.03, "Skim milk":1.035,
+  "Buttermilk":1.03, "Evaporated milk":1.06, "Condensed milk":1.28,
+  "Heavy cream":1.02, "Double cream":1.01, "Whipping cream":1.01,
+  "Sour cream":0.98, "Greek yogurt":1.08, "Yogurt":1.03, "Coconut milk":1.02,
+  "Coconut cream":0.97, "Water":1.00, "Vanilla extract":0.95, "Vanilla paste":1.10,
+  "Lemon juice":1.03, "Coffee":1.00, "Espresso":1.01, "Vegetable oil":0.92,
+  "Canola oil":0.92, "Olive oil":0.91, "Melted butter":0.96, "Honey":1.42,
+  "Maple syrup":1.32, "Corn syrup":1.48, "Glucose syrup":1.54, "Molasses":1.40
 };
 
 const SUGAR_CATEGORIES = ["Granulated sugar", "Brown sugar, packed"];
@@ -398,11 +398,11 @@ const CATEGORY_RULES = [
   ['low fat milk','Milk'],['greek yogurt','Other / Custom'],
   ['yogurt','Other / Custom'],['sour cream','Other / Custom'],
   ['evaporated milk','Other / Custom'],['condensed milk','Other / Custom'],
-  ['coconut milk','Coconut milk'],['coconut cream','Coconut cream'],
+  ['coconut milk','Other / Custom'],['coconut cream','Other / Custom'],
   ['olive oil','Vegetable oil'],['canola oil','Vegetable oil'],
   ['corn syrup','Other / Custom'],['glucose syrup','Other / Custom'],
-  ['molasses','Other / Custom'],['espresso','Espresso'],
-  ['coffee','Coffee'],['melted butter','Butter']
+  ['molasses','Other / Custom'],['espresso','Other / Custom'],
+  ['coffee','Other / Custom'],['melted butter','Butter']
 ];
 
 function detectCategory(name){
@@ -423,7 +423,7 @@ function detectEggPart(name){
 
 function addRow(prefill){
   ingredients.push(Object.assign({
-    id: uid(), name:'', category:'All-purpose flour', amount:'', unit:'cup',
+    id: uid(), name:'', category:'All-purpose flour', amount:'', unit:'g',
     customGpc:'', eggSize:'Large (L, ~50g)', sugarReduction:0
   }, prefill||{}));
   renderRows();
@@ -439,7 +439,7 @@ function removeRow(id){
 
 function unitOptionsFor(category){
   if(category === "Other / Custom") return ["g","kg","oz","cup","tbsp","tsp","ml","egg"];
-  return ["cup","tbsp","tsp","ml","g","kg","oz","egg"];
+  return ["g","kg","oz","cup","tbsp","tsp","ml","egg"];
 }
 
 function gramsPerCup(row){
@@ -507,7 +507,7 @@ function renderRows(){
     const baseUnitSelect = document.createElement('select');
     unitOptionsFor(row.category).forEach(u=>{
       const opt=document.createElement('option'); opt.value=u;
-      opt.textContent = u==='egg' ? 'egg' : u;
+      opt.textContent = u;
       if(u===row.unit) opt.selected=true;
       baseUnitSelect.appendChild(opt);
     });
@@ -539,7 +539,6 @@ function renderRows(){
     delField.appendChild(delBtn);
     fields.appendChild(delField);
 
-    fields.appendChild(delField);
     card.appendChild(fields);
 
     const gpcSubRow = document.createElement('div');
@@ -580,7 +579,7 @@ function renderRows(){
 
     function updateDynamic(){
       row.category = detectCategory(row.name) || 'Other / Custom';
-      const isVolumeUnit = ['cup','tbsp','tsp','ml'].includes(row.unit);
+      const isVolumeUnit = ['cup','tbsp','tsp'].includes(row.unit);
       if(row.unit==='egg'){
         const part = detectEggPart(row.name);
         const partLabel = part==='yolk' ? 'yolk only' : part==='white' ? 'white only' : 'whole egg';
@@ -589,16 +588,11 @@ function renderRows(){
       } else if(isVolumeUnit && row.category==='Other / Custom'){
         hintEl.textContent = row.name.trim() ? "No match — enter grams per cup below." : '';
       } else if(isVolumeUnit){
-        if(row.unit==='ml') {
-          const d=LIQUID_DENSITY[row.category];
-          hintEl.textContent = `Detected: ${row.category} (Density: ${d} g/ml)`;
-        } else {
-          hintEl.textContent = `Detected: ${row.category} (${DENSITY[row.category]} g/cup)`;
-        }
+        hintEl.textContent = `Detected: ${row.category} (${DENSITY[row.category]} g/cup)`;
       } else {
         hintEl.textContent = '';
       }
-      gpcSubRow.style.display = (['cup','tbsp','tsp'].includes(row.unit) && row.category==='Other / Custom') ? 'flex' : 'none';
+      gpcSubRow.style.display = (isVolumeUnit && row.category==='Other / Custom') ? 'flex' : 'none';
       sugarSubRow.style.display = isSugarRow(row) ? 'flex' : 'none';
       renderResults();
     }
@@ -765,18 +759,14 @@ function renderResults(){
 }
 
 document.getElementById('extractBtn').addEventListener('click', function(){
-  const rawText = document.getElementById('pasteBox').value.trim();
+  const text = document.getElementById('pasteBox').value.trim();
   const statusEl = document.getElementById('extractStatus');
-  if(!rawText){ statusEl.textContent='กรุณาวางสูตรก่อนกดปุ่มค่ะ'; statusEl.className='status-msg err'; return; }
+  if(!text){ statusEl.textContent='กรุณาวางสูตรก่อนกดปุ่มค่ะ'; statusEl.className='status-msg err'; return; }
 
   statusEl.textContent='กำลังแกะสูตรเบื้องต้น...';
   statusEl.className='status-msg';
 
   let localNotes = [];
-
-  const text = rawText
-    .replace(/\s+(?:plus|and|และ)\s+(?=\d)/gi, '\n')
-    .replace(/\s*\+\s*(?=\d)/g, '\n');
 
   const normalizedText = text
     .replace(/sticks?\s+butter/gi,'113 g butter')
@@ -854,44 +844,34 @@ document.getElementById('extractBtn').addEventListener('click', function(){
   let newIngredients = [];
 
   lines.forEach(line => {
-    let cleanLine = line.trim().replace(/^[\u25A0-\u25FF\*\-\+\s•▢]+/g, '').trim();
+    const cleanLine = line.trim();
     if(!cleanLine) return;
+    
+    let normalizedLine = cleanLine
+      .replace(/½/g, '0.5')
+      .replace(/¼/g, '0.25')
+      .replace(/¾/g, '0.75')
+      .replace(/⅓/g, '0.33')
+      .replace(/⅔/g, '0.67');
 
-    let amtStr = '';
-    let unitStr = '';
-    let nameStr = '';
-    let isMatched = false;
-
-    const parenthesizedGramMatch = cleanLine.match(/^([\d\/\s\-\.]+)\s*(?:grams|gram|g|กรัม|milliliters|ml|cups|cup|ถ้วย|tablespoons|tbsp|teaspoons|tsp|eggs|egg|fong)?\s*(?:large|medium|small|cold|melted|softened|pure|packed|light|dark|unsalted|salted|heavy)?\s*\(\s*([\d\/\s\-\.]+)\s*(?:g|grams|gram|กรัม)\s*\)\s*(.*)$/i);
-
-    if (parenthesizedGramMatch) {
-      amtStr = parenthesizedGramMatch[2].trim();
-      unitStr = 'g'; 
-      nameStr = parenthesizedGramMatch[3].replace(/^[,\.\s\-\*]+/g, '').trim();
-      isMatched = true;
-    } else {
-      const standardMatch = cleanLine.match(/^([\d\/\s\-\.]+)\s*(?:large|medium|small|cold|melted|softened|pure|packed|light|dark|unsalted|salted|heavy)?\s*(grams|gram|g|กรัม|milliliters|milliliter|ml|cups|cup|ถ้วย|tablespoons|tablespoon|tbsp\.?|tbsp|ช้อนโต๊ะ|teaspoons|teaspoon|tsp\.?|tsp|ช้อนชา|eggs|egg|ฟอง)\s*(.*)$/i);
-      if (standardMatch) {
-        amtStr = standardMatch[1].trim();
-        unitStr = standardMatch[2].toLowerCase().trim();
-        nameStr = standardMatch[3].replace(/^[,\.\s\-\*]+/g, '').trim();
-        isMatched = true;
+    const match = normalizedLine.match(/^([\d\/\s\-\.]+)\s*(g|grams|กรัม|ml|milliliter|milliliters|cup|cups|ถ้วย|tbsp|ช้อนโต๊ะ|tsp|ช้อนชา|egg|eggs|ฟอง|oz|ounce|ounces)\b\s*(.*)$/i);
+    
+    if(match){
+      const amtStr = match[1].trim();
+      const unitStr = match[2].toLowerCase().trim();
+      let nameStr = match[3].trim();
+      
+      if (nameStr.startsWith(',')) {
+        nameStr = nameStr.substring(1).trim();
       }
-    }
-
-    if (isMatched) {
+      
       let finalUnit = 'g';
       if(unitStr.includes('cup') || unitStr.includes('ถ้วย')) finalUnit = 'cup';
-      else if(unitStr.includes('tbsp') || unitStr.includes('tablespoon') || unitStr.includes('ช้อนโต๊ะ')) finalUnit = 'tbsp';
-      else if(unitStr.includes('tsp') || unitStr.includes('teaspoon') || unitStr.includes('ช้อนชา')) finalUnit = 'tsp';
-      else if(unitStr.includes('ml') || unitStr.includes('milliliter')) finalUnit = 'ml';
+      else if(unitStr.includes('tbsp') || unitStr.includes('ช้อนโต๊ะ')) finalUnit = 'tbsp';
+      else if(unitStr.includes('tsp') || unitStr.includes('ช้อนชา')) finalUnit = 'tsp';
+      else if(unitStr.includes('ml') || unitStr.includes('milliliter')) finalUnit='ml';
       else if(unitStr.includes('egg') || unitStr.includes('ฟอง')) finalUnit = 'egg';
-      else if(unitStr === 'g' || unitStr.includes('gram') || unitStr.includes('กรัม')) finalUnit = 'g';
-
-      // แก้ไขปัญหาชื่อว่างเปล่าเมื่อข้อความคำว่า egg ถูกใช้เป็นหน่วยไปแล้ว
-      if (!nameStr && finalUnit === 'egg') {
-        nameStr = 'Egg';
-      }
+      else if(unitStr.includes('oz') || unitStr.includes('ounce')) finalUnit = 'oz';
 
       newIngredients.push({
         id: uid(), name: nameStr, category: detectCategory(nameStr) || 'Other / Custom',
