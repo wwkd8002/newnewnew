@@ -198,6 +198,12 @@
   .warn-row td { color: var(--rose); font-size: 12.5px; font-family: var(--sans); font-style: italic; }
   .empty-msg { font-family: var(--sans); color: var(--ink-soft); font-size: 14px; text-align: center; padding: 24px 0; }
 
+  /* ===== Ingredient checklist checkbox (tick off as you add each ingredient) ===== */
+  th.check-col, td.check-col { width: 26px; padding-right: 0; padding-left: 4px; }
+  .ing-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent-deep); vertical-align: middle; }
+  tr.checked-row td.name-cell, tr.checked-row td.orig { text-decoration: line-through; opacity: .5; }
+  tr.checked-row td.result { opacity: .5; }
+
   .saved-list { display: flex; flex-direction: column; gap: 8px; }
   .saved-item {
     display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
@@ -324,7 +330,7 @@
     <h2>Results after scaling</h2>
     <table>
       <thead>
-        <tr><th>Ingredient</th><th class="num">Original (g)</th><th class="num">Scaled (g)</th></tr>
+        <tr><th class="check-col"></th><th>Ingredient</th><th class="num">Original (g)</th><th class="num">Scaled (g)</th></tr>
       </thead>
       <tbody id="resultsBody"></tbody>
     </table>
@@ -379,6 +385,7 @@ let totalTargetGrams = null;
 let lastTotalOrigGrams = null;
 let recipeOvenTempC = null;
 let editingKey = null;
+let checkedResults = new Set(); // เก็บ id ของวัตถุดิบที่ติ๊กว่าใส่ไปแล้ว (ในตาราง Results after scaling)
 
 function uid(){ return 'r'+Math.random().toString(36).slice(2,9); }
 function isSugarRow(row){ return SUGAR_CATEGORIES.includes(row.category); }
@@ -458,6 +465,7 @@ function addRow(prefill){
 function removeRow(id){
   ingredients = ingredients.filter(r=>r.id!==id);
   if(overrideRowId===id){ overrideRowId=null; scaleMode='pct'; }
+  checkedResults.delete(id);
   renderRows();
   renderResults();
 }
@@ -723,7 +731,22 @@ function renderResults(){
     totalScaled += scaled;
 
     const tr = document.createElement('tr');
+    if (checkedResults.has(row.id)) tr.classList.add('checked-row');
+
+    const tdCheck = document.createElement('td');
+    tdCheck.className = 'check-col';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'ing-check';
+    checkbox.checked = checkedResults.has(row.id);
+    checkbox.onchange = () => {
+      if (checkbox.checked) checkedResults.add(row.id); else checkedResults.delete(row.id);
+      tr.classList.toggle('checked-row', checkbox.checked);
+    };
+    tdCheck.appendChild(checkbox);
+
     const tdName = document.createElement('td');
+    tdName.className = 'name-cell';
     tdName.textContent = row.name + (isSugarRow(row) && parseFloat(row.sugarReduction)>0 ? ` (−${row.sugarReduction}% sugar)` : '');
 
     const tdOrig = document.createElement('td');
@@ -747,7 +770,7 @@ function renderResults(){
     gLabel.textContent='g';
     tdResult.appendChild(gLabel);
 
-    tr.appendChild(tdName); tr.appendChild(tdOrig); tr.appendChild(tdResult);
+    tr.appendChild(tdCheck); tr.appendChild(tdName); tr.appendChild(tdOrig); tr.appendChild(tdResult);
     body.appendChild(tr);
   });
 
@@ -755,7 +778,7 @@ function renderResults(){
     const tr = document.createElement('tr');
     tr.className='warn-row';
     const td = document.createElement('td');
-    td.colSpan = 3;
+    td.colSpan = 4;
     td.textContent = `⚠ "${row.name}" is missing conversion info.`;
     tr.appendChild(td);
     body.appendChild(tr);
@@ -763,7 +786,7 @@ function renderResults(){
 
   const totalTr = document.createElement('tr');
   totalTr.className='total-row';
-  totalTr.innerHTML = `<td>Total</td><td class="num">${totalOrig.toFixed(1)} g</td><td class="num">${totalScaled.toFixed(1)} g</td>`;
+  totalTr.innerHTML = `<td></td><td>Total</td><td class="num">${totalOrig.toFixed(1)} g</td><td class="num">${totalScaled.toFixed(1)} g</td>`;
   body.appendChild(totalTr);
 
   lastTotalOrigGrams = totalOrig;
@@ -990,6 +1013,7 @@ async function refreshSavedList(){
       loadBtn.className='btn secondary small'; loadBtn.textContent='Open';
       loadBtn.onclick=()=>{
         editingKey = key;
+        checkedResults.clear();
         document.getElementById('saveChangesBtn').style.display='inline-block';
         document.getElementById('recipeNameInput').value=label;
         ingredients = (data.ingredients||[]).map(ing=>Object.assign({id:uid()}, ing));
@@ -1072,6 +1096,7 @@ document.getElementById("clearBtn").addEventListener("click",function(){
   totalTargetGrams=null;
   scalePct=100;
   scaleMode="pct";
+  checkedResults.clear();
   renderRows();
   renderResults();
   renderPills();
