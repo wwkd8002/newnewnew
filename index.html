@@ -204,7 +204,12 @@
   tr.checked-row td.name-cell, tr.checked-row td.orig { text-decoration: line-through; opacity: .5; }
   tr.checked-row td.result { opacity: .5; }
 
-  .saved-list { display: flex; flex-direction: column; gap: 8px; }
+  .saved-list {
+    display: flex; flex-direction: column; gap: 8px;
+    max-height: 420px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
   .saved-item {
     display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
     font-family: var(--sans); font-size: 13px; padding: 9px 12px;
