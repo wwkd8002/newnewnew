@@ -284,6 +284,10 @@
     <h2>Original Recipe URL (optional)</h2>
     <div class="card-note">Save the original recipe link for future reference.</div>
     <input type="url" id="recipeUrl" placeholder="https://example.com/recipe" style="width:100%;padding:10px;border:1px solid var(--paper-line);border-radius:3px;background:#fff;color:var(--ink);font-family:var(--sans);font-size:14px;">
+    <div id="recipeUrlView" style="display:none; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 0 2px;">
+      <a id="recipeUrlLink" href="#" target="_blank" rel="noopener noreferrer" style="font-family:var(--sans); font-size:14px; color:var(--accent-deep); word-break:break-all;"></a>
+      <button type="button" class="btn small secondary" id="editRecipeUrlBtn">✎ Edit link</button>
+    </div>
   </div>
 
   <div class="card">
@@ -1024,6 +1028,7 @@ async function refreshSavedList(){
         document.getElementById('recipeNameInput').value=label;
         ingredients = (data.ingredients||[]).map(ing=>Object.assign({id:uid()}, ing));
         if(document.getElementById('recipeUrl')) document.getElementById('recipeUrl').value = data.recipeUrl || '';
+        if(data.recipeUrl){ showRecipeUrlAsLink(data.recipeUrl); } else { showRecipeUrlAsInput(); }
         document.getElementById('pasteBox').value = data.pasteText || '';
         document.getElementById('notesBox').value = data.notes || '';
         recipeOvenTempC = (typeof data.ovenTempC === 'number') ? data.ovenTempC : null;
@@ -1090,6 +1095,7 @@ document.getElementById('addRowBtn').addEventListener('click', function() {
 
 document.getElementById("clearBtn").addEventListener("click",function(){
   if(document.getElementById("recipeUrl")) document.getElementById("recipeUrl").value="";
+  showRecipeUrlAsInput();
   document.getElementById("pasteBox").value="";
   document.getElementById("notesBox").value="";
   document.getElementById("extractStatus").textContent="";
@@ -1108,6 +1114,31 @@ document.getElementById("clearBtn").addEventListener("click",function(){
   renderPills();
   requestAnimationFrame(autoResizeAllTextareas);
 });
+
+function showRecipeUrlAsLink(url){
+  const input = document.getElementById('recipeUrl');
+  const view = document.getElementById('recipeUrlView');
+  const link = document.getElementById('recipeUrlLink');
+  if(!input || !view || !link) return;
+  input.style.display = 'none';
+  view.style.display = 'flex';
+  link.href = url;
+  link.textContent = url;
+}
+function showRecipeUrlAsInput(){
+  const input = document.getElementById('recipeUrl');
+  const view = document.getElementById('recipeUrlView');
+  if(!input || !view) return;
+  input.style.display = '';
+  view.style.display = 'none';
+}
+const editRecipeUrlBtnEl = document.getElementById('editRecipeUrlBtn');
+if(editRecipeUrlBtnEl){
+  editRecipeUrlBtnEl.onclick = () => {
+    showRecipeUrlAsInput();
+    document.getElementById('recipeUrl').focus();
+  };
+}
 
 function autoResizeTextarea(el){
     if(!el) return;
