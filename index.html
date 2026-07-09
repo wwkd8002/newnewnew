@@ -73,7 +73,7 @@
     font-family: Georgia, 'Times New Roman', serif;
     padding: 28px 14px 80px;
   }
-  .wrap { max-width: 840px; margin: 0 auto; }
+  .wrap { max-width: 1200px; margin: 0 auto; }
   header { margin-bottom: 24px; }
   .eyebrow {
     font-family: var(--sans); font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
@@ -235,6 +235,15 @@
     .sidebar{width:100%;position:static}
   }
 
+  /* ===== Choose a scale + Results after scaling: side by side on desktop (per user request) ===== */
+  .scale-results-row{display:flex; gap:20px; align-items:flex-start;}
+  .scale-col{flex:1 1 320px; min-width:0;}
+  .results-col{flex:1.3 1 380px; min-width:0; position:sticky; top:15px;}
+  @media (max-width:900px){
+    .scale-results-row{flex-direction:column;}
+    .results-col{position:static;}
+  }
+
   textarea{
     overflow:hidden;
     resize:none;
@@ -313,6 +322,9 @@
     <textarea id="notesBox" placeholder="e.g. Bake at 175°C (350°F) for 12–14 minutes. Chill dough 30 min before baking. Tap the tray once gently after removing from the oven."></textarea>
   </div>
 
+  <div class="scale-results-row">
+  <div class="scale-col">
+
   <div class="card">
     <h2>Choose a scale</h2>
     <div class="card-note">Scales the whole recipe (this is separate from the sugar-only reduction below).</div>
@@ -336,6 +348,9 @@
     </div>
   </div>
 
+  </div>
+  <div class="results-col">
+
   <div class="card">
     <h2>Results after scaling</h2>
     <table>
@@ -345,6 +360,9 @@
       <tbody id="resultsBody"></tbody>
     </table>
     <div id="emptyMsg" class="empty-msg" style="display:none;">Add an ingredient above to start calculating.</div>
+  </div>
+
+  </div>
   </div>
 
   </div></div>
