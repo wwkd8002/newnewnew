@@ -121,9 +121,10 @@
     padding: 12px; margin-bottom: 10px;
   }
   .ing-fields { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
-  .field { display: flex; flex-direction: column; gap: 4px; font-family: var(--sans); }
+  .field { display: flex; flex-direction: column; gap: 4px; font-family: var(--sans); min-width: 0; }
   .field label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); font-weight: 600; }
   .field input, .field select {
+    width: 100%;
     font-family: var(--sans); font-size: 14px; padding: 7px 8px;
     border: 1px solid var(--paper-line); border-radius: 3px; background: #fff; color: var(--ink);
   }
