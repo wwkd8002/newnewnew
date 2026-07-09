@@ -1013,8 +1013,7 @@ async function refreshSavedList(){
       const item = document.createElement('div');
       item.className='saved-item';
       const label = key.replace(/^recipe:/,'').replace(/-\d+$/,'');
-      const dateStr = data.savedAt ? new Date(data.savedAt).toLocaleString() : '';
-      item.innerHTML = `<div><div>${label}</div><div class="meta">${dateStr} · ${(data.ingredients||[]).length} ingredient(s)</div></div>`;
+      item.innerHTML = `<div><div>${label}</div></div>`;
       
       const actions = document.createElement('div');
       actions.className='saved-actions';
