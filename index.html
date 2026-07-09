@@ -37,6 +37,22 @@
   };
   window.doSignOut = function(){ signOut(auth); };
 
+  // ★ เพิ่มใหม่: ระบบ "รอ auth พร้อมก่อนค่อยโหลดข้อมูล" แทนการเดาเวลาด้วย setTimeout
+  // เพราะเดิม setTimeout(1000ms) อาจยิงคำสั่งอ่านข้อมูลก่อนที่ login จะเสร็จจริง ทำให้ถูก
+  // Firebase Rules ปฏิเสธ (permission denied) และขึ้น "Unable to load list." เวลาที่ login ใช้เวลานานกว่า 1 วิ
+  window.__authReady = false;
+  window.__authReadyCallbacks = [];
+  function fireAuthReady(){
+    window.__authReady = true;
+    const cbs = window.__authReadyCallbacks;
+    window.__authReadyCallbacks = [];
+    cbs.forEach(function(cb){ try{ cb(); }catch(e){} });
+  }
+  window.onAuthReady = function(cb){
+    if(window.__authReady) cb();
+    else window.__authReadyCallbacks.push(cb);
+  };
+
   onAuthStateChanged(auth, function(user){
     const overlay = document.getElementById('authOverlay');
     const appWrap = document.getElementById('appWrap');
@@ -73,6 +89,7 @@
       const emailSpan = document.getElementById('authUserEmail');
       if(emailSpan) emailSpan.textContent = user.email;
     }
+    fireAuthReady();
   });
 
   window.safeStorage = {
@@ -1256,7 +1273,10 @@ async function refreshSavedList(){
       listEl.appendChild(item);
     }
   }catch(err){
-    listEl.innerHTML = '<div class="status-msg err">Unable to load list.</div>';
+    // ★ แก้ไข: โชว์ error จริงด้วย (เช่น permission denied) เพื่อให้ debug ง่ายขึ้นในอนาคต
+    // แทนที่จะขึ้นข้อความกลางๆ ที่ไม่บอกสาเหตุเลย
+    console.error('refreshSavedList error:', err);
+    listEl.innerHTML = '<div class="status-msg err">Unable to load list. (' + (err && err.message ? err.message : err) + ')</div>';
   }
 }
 
@@ -1390,9 +1410,12 @@ renderPills();
 renderResults();
 updateTotalReadout();
 
-setTimeout(() => {
-  refreshSavedList();
-}, 1000);
+if(typeof window.onAuthReady === 'function'){
+  window.onAuthReady(refreshSavedList);
+} else {
+  // เผื่อกรณีเบราว์เซอร์เก่าที่โหลด module script ช้าผิดปกติ ใช้ fallback แบบเดิมสำรองไว้
+  setTimeout(() => { refreshSavedList(); }, 1000);
+}
 </script>
 
 <script>
