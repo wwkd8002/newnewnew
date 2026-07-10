@@ -1479,12 +1479,6 @@ document.getElementById('exportPdfBtn').addEventListener('click', () => {
 window.onAuthReady(function(){
   loadSavedList();
 });
-document.addEventListener('visibilitychange', ()=>{
-  if(!document.hidden && window.__authReady){ loadSavedList(); }
-});
-setTimeout(()=>{
-  if(window.__authReady){ loadSavedList(); }
-},1000);
 renderPills();
 renderRows();
 recalc();
