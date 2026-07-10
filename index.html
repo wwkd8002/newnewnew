@@ -51,19 +51,25 @@
     else window.__authReadyCallbacks.push(cb);
   };
 
-  // แก้ไขส่วนดึงข้อมูลให้ปลอดภัย ไม่บล็อกการทำงานอื่นของหน้าเว็บ
+  // ปรับปรุงฟังก์ชันฟังพจนานุกรมวัตถุดิบ ให้ปลอดภัย 100% ไม่ขัดขวางการโหลดหน้าเว็บ
   window.globalIngredientDb = {};
   function listenToIngredientDb() {
     try {
       const ingRef = ref(db, 'ingredient_dictionary');
       onValue(ingRef, (snapshot) => {
-        if (snapshot.exists()) {
-          window.globalIngredientDb = snapshot.val();
-        } else {
+        try {
+          if (snapshot && snapshot.exists()) {
+            window.globalIngredientDb = snapshot.val() || {};
+          } else {
+            window.globalIngredientDb = {};
+          }
+        } catch(innerErr) {
+          console.error("Error parsing dictionary snapshot:", innerErr);
           window.globalIngredientDb = {};
         }
-        if (typeof window.recalc === 'function' && window.ingredients && window.ingredients.length > 0) {
-          window.recalc();
+        // รันฟังก์ชันคำนวณใหม่ถ้าพร้อม โดยไม่ยอมให้โค้ดพัง
+        if (typeof window.recalc === 'function') {
+          try { window.recalc(); } catch(e) { console.error("Recalc failed inside listener:", e); }
         }
       }, (error) => {
         console.error("Firebase read dictionary error:", error);
@@ -118,6 +124,8 @@
       const emailSpan = document.getElementById('authUserEmail');
       if(emailSpan) emailSpan.textContent = user.email;
     }
+    
+    // โหลดฐานข้อมูลดิคชันนารี และ ปลดล็อกให้แอปทำงานต่อทันทีแยกกันคนละส่วน
     listenToIngredientDb(); 
     fireAuthReady();
   });
@@ -128,19 +136,30 @@
       await set(ref(db, path), JSON.parse(val));
     },
     async listPrefix() {
-      const snapshot = await get(ref(db, 'recipe'));
-      if (!snapshot.exists()) return [];
-      const data = snapshot.val();
-      const keys = [];
-      for (let id in data) {
-        keys.push('recipe:' + id);
+      try {
+        const snapshot = await get(ref(db, 'recipe'));
+        if (!snapshot || !snapshot.exists()) return [];
+        const data = snapshot.val();
+        if (!data) return [];
+        const keys = [];
+        for (let id in data) {
+          keys.push('recipe:' + id);
+        }
+        return keys;
+      } catch(e) {
+        console.error("Firebase list error:", e);
+        return [];
       }
-      return keys;
     },
     async get(key) {
-      const path = key.replace(/:/g, '/');
-      const snapshot = await get(ref(db, path));
-      return snapshot.exists() ? JSON.stringify(snapshot.val()) : null;
+      try {
+        const path = key.replace(/:/g, '/');
+        const snapshot = await get(ref(db, path));
+        return (snapshot && snapshot.exists()) ? JSON.stringify(snapshot.val()) : null;
+      } catch(e) {
+        console.error("Firebase get error:", e);
+        return null;
+      }
     },
     async delete(key) {
       const path = key.replace(/:/g, '/');
@@ -605,7 +624,7 @@ function parseAmount(str) {
 
 const CATEGORY_RULES = [
   ['brown sugar', 'Brown sugar, packed'], ['powdered sugar', 'Powdered sugar'],
-  ['icing sugar', 'Powded sugar'], ['confectioner', 'Powdered sugar'],
+  ['icing sugar', 'Powdered sugar'], ['confectioner', 'Powdered sugar'],
   ['granulated sugar', 'Granulated sugar'], ['white sugar', 'Granulated sugar'],
   ['caster sugar', 'Granulated sugar'], ['sugar', 'Granulated sugar'],
   ['cake flour', 'Cake flour'], ['bread flour', 'Bread flour'],
@@ -657,6 +676,7 @@ function addRow(prefill){
 
 function renderRows(){
   const container = document.getElementById('rows');
+  if(!container) return;
   container.innerHTML = '';
   window.ingredients.forEach(row => {
     const card = document.createElement('div');
@@ -666,7 +686,7 @@ function renderRows(){
     if(row.unit === 'cup' || row.unit === 'tsp' || row.unit === 'tbsp'){
       const isCustom = row.category === 'Other / Custom';
       const defaultG = DENSITY[row.category] || '';
-      const cleanKey = row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "");
+      const cleanKey = row.name ? row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "") : "";
       const fbWeight = window.globalIngredientDb && window.globalIngredientDb[cleanKey];
       const placeholderText = fbWeight ? `FB: ${fbWeight}g` : (defaultG ? `${defaultG}g` : 'e.g. 150');
 
@@ -708,7 +728,7 @@ function renderRows(){
       <div class="ing-fields">
         <div class="field name">
           <label>Ingredient Name</label>
-          <input type="text" class="row-name" data-id="${row.id}" value="${row.name}" placeholder="e.g. Bread flour, Raisins">
+          <input type="text" class="row-name" data-id="${row.id}" value="${row.name||''}" placeholder="e.g. Bread flour, Raisins">
         </div>
         <div class="field category">
           <label>Density Category</label>
@@ -718,7 +738,7 @@ function renderRows(){
         </div>
         <div class="field amount">
           <label>Amount</label>
-          <input type="text" class="row-amount" data-id="${row.id}" value="${row.amount}" placeholder="e.g. 1 1/2, 250">
+          <input type="text" class="row-amount" data-id="${row.id}" value="${row.amount||''}" placeholder="e.g. 1 1/2, 250">
         </div>
         <div class="field unit">
           <label>Unit</label>
@@ -816,7 +836,7 @@ function getRowOrigGrams(row){
   if(row.unit==='tsp') cups = amt/48;
   if(row.unit==='tbsp') cups = amt/16;
 
-  const cleanKey = row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "");
+  const cleanKey = row.name ? row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "") : "";
   const fbWeight = window.globalIngredientDb && window.globalIngredientDb[cleanKey];
 
   if(row.gpc && !isNaN(parseFloat(row.gpc))){
@@ -832,6 +852,7 @@ function getRowOrigGrams(row){
 
 window.recalc = function(){
   const tbody = document.getElementById('resultsBody');
+  if(!tbody) return;
   tbody.innerHTML = '';
   
   if(!window.ingredients || window.ingredients.length===0){
@@ -870,7 +891,7 @@ window.recalc = function(){
     scalePct = factor * 100;
     document.getElementById('scaleReadout').innerHTML = Math.round(scalePct) + '<span> %</span>';
     const cp = document.getElementById('customPct');
-    if(document.activeElement !== cp) cp.value = Math.round(scalePct);
+    if(cp && document.activeElement !== cp) cp.value = Math.round(scalePct);
   } else if(scaleMode==='override' && overrideRowId!=null && allRowsValid){
     const target = computedRows.find(x=>x.row.id===overrideRowId);
     if(target && !isNaN(target.finalOrigG) && target.finalOrigG>0){
@@ -880,7 +901,7 @@ window.recalc = function(){
         scalePct = factor * 100;
         document.getElementById('scaleReadout').innerHTML = Math.round(scalePct) + '<span> %</span>';
         const cp = document.getElementById('customPct');
-        if(document.activeElement !== cp) cp.value = Math.round(scalePct);
+        if(cp && document.activeElement !== cp) cp.value = Math.round(scalePct);
       }
     }
   }
@@ -891,7 +912,7 @@ window.recalc = function(){
     const tr = document.createElement('tr');
     if(checkedResults.has(row.id)) tr.className = 'checked-row';
 
-    const cleanKey = row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "");
+    const cleanKey = row.name ? row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "") : "";
     const hasFbRecord = window.globalIngredientDb && window.globalIngredientDb[cleanKey];
 
     const isCupUnit = ['cup','tsp','tbsp'].includes(row.unit);
@@ -989,6 +1010,7 @@ document.getElementById('resultsBody').addEventListener('change', e => {
 const PRESETS = [25,33.3,50,66.7,75,100,150,200,300];
 function renderPills(){
   const p = document.getElementById('pills');
+  if(!p) return;
   p.innerHTML = PRESETS.map(v => `
     <button class="pill ${scaleMode==='pct'&&scalePct===v?'active':''}" onclick="setPill(${v})">${v}%</button>
   `).join('');
@@ -1154,6 +1176,7 @@ document.getElementById('extractBtn').addEventListener('click', () => {
 });
 
 function adjustTextareaHeight(el){
+  if(!el) return;
   el.style.height = 'auto';
   el.style.height = el.scrollHeight + 'px';
 }
@@ -1242,6 +1265,7 @@ document.getElementById('saveChangesBtn').addEventListener('click', async () => 
 
 async function loadSavedList(){
   const container = document.getElementById('savedList');
+  if(!container) return;
   container.innerHTML = '<div style="font-size:13px;color:var(--ink-soft);">กำลังโหลดรายการสูตรบนระบบคลาวด์...</div>';
 
   try {
@@ -1270,6 +1294,7 @@ async function loadSavedList(){
 
 function renderSavedList(items) {
   const container = document.getElementById('savedList');
+  if(!container) return;
   container.innerHTML = '';
 
   const categories = {};
@@ -1379,8 +1404,10 @@ function loadRecipe(key, data){
   if(url){
     document.getElementById('recipeUrl').style.display = 'none';
     const link = document.getElementById('recipeUrlLink');
-    link.href = url;
-    link.textContent = '🔗 ' + (data.name || 'Original Recipe Link');
+    if(link) {
+      link.href = url;
+      link.textContent = '🔗 ' + (data.name || 'Original Recipe Link');
+    }
     document.getElementById('recipeUrlView').style.display = 'flex';
   } else {
     document.getElementById('recipeUrl').style.display = 'block';
@@ -1388,7 +1415,8 @@ function loadRecipe(key, data){
   }
 
   document.getElementById('pasteBox').value = '';
-  document.getElementById('customPct').value = (scaleMode==='pct' && !PRESETS.includes(scalePct)) ? Math.round(scalePct) : '';
+  const cp = document.getElementById('customPct');
+  if(cp) cp.value = (scaleMode==='pct' && !PRESETS.includes(scalePct)) ? Math.round(scalePct) : '';
   document.getElementById('scaleReadout').innerHTML = Math.round(scalePct) + '<span> %</span>';
   
   document.getElementById('saveChangesBtn').style.display = 'block';
@@ -1425,6 +1453,7 @@ document.getElementById('editRecipeUrlBtn').addEventListener('click', () => {
 
 document.getElementById('exportPdfBtn').addEventListener('click', () => {
    const area = document.getElementById('printArea');
+   if(!area) return;
    const name = document.getElementById('recipeNameInput').value.trim() || 'Untitled Scaled Recipe';
    const notes = document.getElementById('notesBox').value.trim();
    const url = document.getElementById('recipeUrl').value.trim();
