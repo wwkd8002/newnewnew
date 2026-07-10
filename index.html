@@ -1003,8 +1003,8 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
   let text = parseUnicodeFraction(rawText);
   
-  // จัดการรวมกรณี "เลขเต็ม and/plus/+ เศษส่วน" (เลขคละ)
-  text = text.replace(/(\d+)\s+(?:and|plus|และ|\+)\s+(\d+\/\d+)/gi, '$1 $2');
+  // จัดการรวมกรณี "เลขเต็ม and/plus/+ เศษส่วน" (เลขคละ) - ปรับปรุงให้รองรับการพิมพ์ติดกันหรือเว้นวรรคไม่เท่ากัน
+  text = text.replace(/(\d+)[ \t]*(?:\s+and\s+|\s+plus\s+|\s+และ\s+|\+)[ \t]*(\d+\/\d+)/gi, '$1 $2');
   
   // ล้างวงเล็บน้ำหนักกรัมซ้ำซ้อน
   text = text.replace(/(\([^)]*\)|grams?|g\b)/gi,'$1');
