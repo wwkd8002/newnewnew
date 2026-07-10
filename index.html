@@ -993,7 +993,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
   statusEl.textContent='กำลังแกะสูตร...';
 
-  cconst parseUnicodeFraction = (str) => {
+  const parseUnicodeFraction = (str) => {
     // ใส่รหัสแปลความหมายสัญลักษณ์เศษส่วนครบทุกตัวที่มีในระบบสากล (Unicode) ล่วงหน้าทั้งหมด
     const fractions = {
       '½': '1/2', '⅓': '1/3', '¼': '1/4', '¾': '3/4', 
