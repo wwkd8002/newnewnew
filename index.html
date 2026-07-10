@@ -1423,6 +1423,9 @@ document.addEventListener('DOMContentLoaded',function(){
  const btn=document.getElementById('exportPdfBtn');
  if(!btn) return;
  btn.addEventListener('click',function(){
+   // ★ แก้ไข: ย้อนกลับมาใช้ window.print() (หน้าต่างพิมพ์/ตัวอย่างก่อนพิมพ์) แบบเดิม
+   // เพราะ jsPDF ใช้ฟอนต์มาตรฐานที่ไม่รองรับภาษาไทย ทำให้ข้อความไทยกลายเป็นตัวอักษรมั่วเวลา export
+   // ส่วนวิธีนี้ใช้การ render ของเบราว์เซอร์เอง จึงรองรับภาษาไทยได้ถูกต้องเสมอ
    const area=document.getElementById('printArea');
    const recipe=(document.getElementById('recipeNameInput')||{}).value||'Recipe';
    const notes=(document.getElementById('notesBox')||{}).value||'';
@@ -1443,7 +1446,7 @@ document.addEventListener('DOMContentLoaded',function(){
    html+='</table><h2>Method / Baking Notes</h2><div style="white-space:pre-wrap">'+notes+'</div>';
    area.innerHTML=html;
 
-   // ★ แก้ไข: ย้าย printArea ออกมาเป็นลูกโดยตรงของ <body> ชั่วคราวก่อนพิมพ์
+   // ย้าย printArea ออกมาเป็นลูกโดยตรงของ <body> ชั่วคราวก่อนพิมพ์
    // เพื่อให้ CSS กฎ "body > *" ทำงานได้ถูกต้อง (เดิม printArea ถูกฝังลึกอยู่ใน .wrap/.main-content)
    // แล้วค่อยย้ายกลับที่เดิมหลังพิมพ์เสร็จ เพื่อไม่กระทบตำแหน่งเดิมของมันในหน้าเว็บ
    const originalParent = area.parentNode;
@@ -1451,10 +1454,7 @@ document.addEventListener('DOMContentLoaded',function(){
    document.body.appendChild(area);
 
    area.style.display='block';
-   // ★ แก้ไข: บนมือถือบางรุ่น เบราว์เซอร์อาจยัง layout/render เนื้อหาที่เพิ่งเปลี่ยนไม่เสร็จ
-   // ตอนที่ window.print() ถูกเรียก (100ms อาจไม่พอสำหรับมือถือที่ประมวลผลช้ากว่าคอมพิวเตอร์)
-   // ทำให้ PDF ที่ export ออกมาเป็นหน้าเปล่า แก้โดยรอให้ browser วาดหน้าจอเสร็จจริงๆ ก่อน
-   // (requestAnimationFrame 2 ชั้น = รอครบ 1 รอบ paint) แล้วหน่วงเพิ่มอีกหน่อยเผื่อเครื่องช้า
+   // รอให้ browser วาดหน้าจอเสร็จจริงๆ ก่อนค่อยเปิดหน้าต่างพิมพ์ (ช่วยเรื่อง timing บนมือถือบางรุ่น)
    requestAnimationFrame(function(){
      requestAnimationFrame(function(){
        setTimeout(function(){
