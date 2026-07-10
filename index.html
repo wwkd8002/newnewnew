@@ -51,31 +51,35 @@
     else window.__authReadyCallbacks.push(cb);
   };
 
-  // ดึงค่าน้ำหนักวัตถุดิบทั้งหมดแบบ Realtime จาก Firebase มารอไว้ในเครื่อง
+  // แก้ไขส่วนดึงข้อมูลให้ปลอดภัย ไม่บล็อกการทำงานอื่นของหน้าเว็บ
   window.globalIngredientDb = {};
   function listenToIngredientDb() {
-    const ingRef = ref(db, 'ingredient_dictionary');
-    onValue(ingRef, (snapshot) => {
-      if (snapshot.exists()) {
-        window.globalIngredientDb = snapshot.val();
-      } else {
-        window.globalIngredientDb = {};
-      }
-      // อัปเดตตารางคำนวณใหม่เมื่อข้อมูลดิกชันนารีอัปเดต
-      if (typeof window.recalc === 'function') {
-        window.recalc();
-      }
-    });
+    try {
+      const ingRef = ref(db, 'ingredient_dictionary');
+      onValue(ingRef, (snapshot) => {
+        if (snapshot.exists()) {
+          window.globalIngredientDb = snapshot.val();
+        } else {
+          window.globalIngredientDb = {};
+        }
+        if (typeof window.recalc === 'function' && window.ingredients && window.ingredients.length > 0) {
+          window.recalc();
+        }
+      }, (error) => {
+        console.error("Firebase read dictionary error:", error);
+      });
+    } catch (e) {
+      console.error("Setup dictionary listener failed:", e);
+    }
   }
 
-  // ฟังก์ชันสากลให้หน้าต่างเว็บเรียกใช้เพื่อบันทึกวัตถุดิบใหม่เข้า Firebase กลาง
   window.saveIngredientToDb = async function(name, weightPerCup) {
     if (!name || isNaN(weightPerCup) || weightPerCup <= 0) return;
-    const key = name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, ""); // ล้างอักขระพิเศษที่ Firebase ไม่ยอมรับ
+    const key = name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "");
     if (!key) return;
     try {
       await set(ref(db, 'ingredient_dictionary/' + key), parseFloat(weightPerCup));
-      alert(`บันทึกฐานข้อมูลสำเร็จ: 1 cup ของ "${name}" = ${weightPerCup} กรัม เรียบร้อยแล้วค่ะ!`);
+      alert(`บันทึกสำเร็จ: 1 cup ของ "${name}" = ${weightPerCup} กรัม เรียบร้อยค่ะ!`);
     } catch(e) {
       console.error(e);
       alert('บันทึกไม่สำเร็จ: ' + e.message);
@@ -114,7 +118,7 @@
       const emailSpan = document.getElementById('authUserEmail');
       if(emailSpan) emailSpan.textContent = user.email;
     }
-    listenToIngredientDb(); // เริ่มดึงดิกชันนารีวัตถุดิบเมื่อล็อกอินผ่าน
+    listenToIngredientDb(); 
     fireAuthReady();
   });
 
@@ -126,10 +130,8 @@
     async listPrefix() {
       const snapshot = await get(ref(db, 'recipe'));
       if (!snapshot.exists()) return [];
-      
       const data = snapshot.val();
       const keys = [];
-      
       for (let id in data) {
         keys.push('recipe:' + id);
       }
@@ -321,11 +323,6 @@
 
   footer { text-align: center; font-family: var(--sans); font-size: 11.5px; color: var(--ink-soft); margin-top: 22px; line-height: 1.7; }
 
-  @media (max-width:480px){
-    h1 { font-size: 26px; }
-    .field.name, .field.category { flex-basis: 100%; }
-  }
-
   .layout{display:flex;gap:20px;align-items:flex-start}
   .sidebar{width:280px;position:sticky;top:15px}
   .main-content{flex:1;min-width:0}
@@ -396,7 +393,6 @@
   }
   .auth-user-badge button:hover{ background:#f1e0dc; }
 
-  /* สไตล์ปุ่มบันทึกด่วนสีเหลืองทอง */
   .quick-save-btn {
     background: var(--gold); border: none; color: white; padding: 3px 7px;
     border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;
@@ -570,16 +566,6 @@ const DENSITY = {
   "Chocolate": 170, "Other / Custom": null
 };
 
-const LIQUID_DENSITY = {
-  "Milk":1.03, "Whole milk":1.03, "Low fat milk":1.03, "Skim milk":1.035, "Buttermilk":1.03,
-  "Evaporated milk":1.06, "Condensed milk":1.28, "Heavy cream":1.02, "Double cream":1.01,
-  "Whipping cream":1.01, "Sour cream":0.98, "Greek yogurt":1.08, "Yogurt":1.03,
-  "Coconut milk":1.02, "Coconut cream":0.97, "Water":1.00, "Vanilla extract":0.95,
-  "Vanilla paste":1.10, "Lemon juice":1.03, "Coffee":1.00, "Espresso":1.01,
-  "Vegetable oil":0.92, "Canola oil":0.92, "Olive oil":0.91, "Melted butter":0.96,
-  "Honey":1.42, "Maple syrup":1.32, "Corn syrup":1.48, "Glucose syrup":1.54, "Molasses":1.40
-};
-
 const SUGAR_CATEGORIES = ["Granulated sugar", "Brown sugar, packed"];
 const WEIGHT_UNIT_G = { "g": 1, "kg": 1000, "oz": 28.3495 };
 const EGG_PARTS = {
@@ -591,14 +577,13 @@ const EGG_PARTS = {
 const EGG_G = Object.fromEntries(Object.entries(EGG_PARTS).map(([k,v])=>[k,v.whole]));
 const SUGAR_REDUCTION_PRESETS = [0,10,15,20,25,30];
 
-let ingredients = [];
+window.ingredients = [];
 let scalePct = 100;
 let scaleMode = 'pct';
 let overrideRowId = null;
 let rowOverrides = {};
 let totalTargetGrams = null;
 let lastTotalOrigGrams = null;
-let recipeOvenTempC = null;
 let editingKey = null;
 let checkedResults = new Set();
 
@@ -620,7 +605,7 @@ function parseAmount(str) {
 
 const CATEGORY_RULES = [
   ['brown sugar', 'Brown sugar, packed'], ['powdered sugar', 'Powdered sugar'],
-  ['icing sugar', 'Powdered sugar'], ['confectioner', 'Powdered sugar'],
+  ['icing sugar', 'Powded sugar'], ['confectioner', 'Powdered sugar'],
   ['granulated sugar', 'Granulated sugar'], ['white sugar', 'Granulated sugar'],
   ['caster sugar', 'Granulated sugar'], ['sugar', 'Granulated sugar'],
   ['cake flour', 'Cake flour'], ['bread flour', 'Bread flour'],
@@ -642,14 +627,7 @@ const CATEGORY_RULES = [
   ['corn starch', 'Cornstarch'], ['cornstarch', 'Cornstarch'],
   ['cornflour', 'Cornstarch'], ['yeast', 'Yeast'],
   ['lemon juice', 'Lemon juice'], ['buttermilk','Buttermilk'],
-  ['whole milk','Milk'], ['skim milk','Milk'], ['low fat milk','Milk'],
-  ['greek yogurt','Other / Custom'], ['yogurt','Other / Custom'],
-  ['sour cream','Other / Custom'], ['evaporated milk','Other / Custom'],
-  ['condensed milk','Other / Custom'], ['coconut milk','Coconut milk'],
-  ['coconut cream','Coconut cream'], ['olive oil','Vegetable oil'],
-  ['canola oil','Vegetable oil'], ['corn syrup','Other / Custom'],
-  ['glucose syrup','Other / Custom'], ['molasses','Other / Custom'],
-  ['espresso','Espresso'], ['coffee','Coffee'], ['melted butter','Butter']
+  ['coconut milk','Coconut milk'], ['coconut cream','Coconut cream']
 ];
 
 function detectCategory(name){
@@ -669,7 +647,7 @@ function detectEggPart(name){
 }
 
 function addRow(prefill){
-  ingredients.push(Object.assign({
+  window.ingredients.push(Object.assign({
     id: uid(), name:'', category:'All-purpose flour', amount:'', unit:'g',
     eggSize:'Large (L, ~50g)', gpc:'', SR:0
   }, prefill));
@@ -680,7 +658,7 @@ function addRow(prefill){
 function renderRows(){
   const container = document.getElementById('rows');
   container.innerHTML = '';
-  ingredients.forEach(row => {
+  window.ingredients.forEach(row => {
     const card = document.createElement('div');
     card.className = 'ing-card';
     
@@ -688,7 +666,6 @@ function renderRows(){
     if(row.unit === 'cup' || row.unit === 'tsp' || row.unit === 'tbsp'){
       const isCustom = row.category === 'Other / Custom';
       const defaultG = DENSITY[row.category] || '';
-      // หากมีข้อมูลชื่อนี้อยู่ใน Firebase ดิกชันนารี ให้แสดงไกด์ค่าน้ำหนักนั้น
       const cleanKey = row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "");
       const fbWeight = window.globalIngredientDb && window.globalIngredientDb[cleanKey];
       const placeholderText = fbWeight ? `FB: ${fbWeight}g` : (defaultG ? `${defaultG}g` : 'e.g. 150');
@@ -761,7 +738,7 @@ function renderRows(){
 }
 
 window.setRowSR = function(id, val){
-  const r = ingredients.find(x=>x.id===id);
+  const r = window.ingredients.find(x=>x.id===id);
   if(r){
     r.SR = val;
     renderRows();
@@ -770,7 +747,7 @@ window.setRowSR = function(id, val){
 };
 
 window.removeRow = function(id){
-  ingredients = ingredients.filter(x=>x.id!==id);
+  window.ingredients = window.ingredients.filter(x=>x.id!==id);
   checkedResults.delete(id);
   renderRows();
   recalc();
@@ -781,7 +758,7 @@ document.getElementById('addRowBtn').addEventListener('click',()=>addRow());
 document.getElementById('rows').addEventListener('input', e => {
   const id = e.target.getAttribute('data-id');
   if(!id) return;
-  const r = ingredients.find(x=>x.id===id);
+  const r = window.ingredients.find(x=>x.id===id);
   if(!r) return;
 
   if(e.target.classList.contains('row-name')){
@@ -803,7 +780,7 @@ document.getElementById('rows').addEventListener('input', e => {
 document.getElementById('rows').addEventListener('change', e => {
   const id = e.target.getAttribute('data-id');
   if(!id) return;
-  const r = ingredients.find(x=>x.id===id);
+  const r = window.ingredients.find(x=>x.id===id);
   if(!r) return;
 
   if(e.target.classList.contains('row-category')){
@@ -818,17 +795,14 @@ document.getElementById('rows').addEventListener('change', e => {
   recalc();
 });
 
-// ฟังก์ชันหลักในการหาและแปลงค่าน้ำหนักกรัมของแถว
 function getRowOrigGrams(row){
   const amt = parseAmount(row.amount);
   if(isNaN(amt) || amt<=0) return NaN;
 
-  // 1. แปลงหน่วยน้ำหนักมาตรฐานแบบตรงตัว (g, kg, oz)
   if(WEIGHT_UNIT_G[row.unit]){
     return amt * WEIGHT_UNIT_G[row.unit];
   }
 
-  // 2. แปลงหน่วยไข่
   if(row.unit === 'egg'){
     const base = EGG_G[row.eggSize] || 50;
     const pt = detectEggPart(row.name);
@@ -838,12 +812,10 @@ function getRowOrigGrams(row){
     return amt * base;
   }
 
-  // 3. แปลงหน่วยตวง (cup, tsp, tbsp)
   let cups = amt;
   if(row.unit==='tsp') cups = amt/48;
   if(row.unit==='tbsp') cups = amt/16;
 
-  // ตรวจหาค่าน้ำหนักจาก Firebase ก่อน
   const cleanKey = row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "");
   const fbWeight = window.globalIngredientDb && window.globalIngredientDb[cleanKey];
 
@@ -862,7 +834,7 @@ window.recalc = function(){
   const tbody = document.getElementById('resultsBody');
   tbody.innerHTML = '';
   
-  if(ingredients.length===0){
+  if(!window.ingredients || window.ingredients.length===0){
     document.getElementById('emptyMsg').style.display = 'block';
     document.getElementById('totalReadout').textContent = 'Target total = 0 g';
     return;
@@ -873,7 +845,7 @@ window.recalc = function(){
   let allRowsValid = true;
   const computedRows = [];
 
-  ingredients.forEach(row => {
+  window.ingredients.forEach(row => {
     const origG = getRowOrigGrams(row);
     let finalOrigG = origG;
     
@@ -922,7 +894,6 @@ window.recalc = function(){
     const cleanKey = row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "");
     const hasFbRecord = window.globalIngredientDb && window.globalIngredientDb[cleanKey];
 
-    // เช็กว่าตัวนี้เป็นหน่วยถ้วยตวงตวงแต่ไม่มีน้ำหนักแปลงเป็นกรัมใช่หรือไม่
     const isCupUnit = ['cup','tsp','tbsp'].includes(row.unit);
     const missingWeightData = isCupUnit && !row.gpc && !hasFbRecord && row.category === 'Other / Custom';
 
@@ -931,7 +902,6 @@ window.recalc = function(){
       nameCellHtml += ` <span style="font-size:11px; color:var(--rose); font-weight:normal;">(-${row.SR}% sugar)</span>`;
     }
 
-    // หากกรอกกรัมเองแล้วและเป็นหน่วยตวงแต่ยังไม่มีใน Firebase จะขึ้นปุ่มกดบันทึกด่วนสีทอง
     if (isCupUnit && row.gpc && !isNaN(parseFloat(row.gpc)) && !hasFbRecord && row.name) {
       nameCellHtml += ` <button type="button" class="quick-save-btn no-print" onclick="window.saveIngredientToDb('${row.name}', ${row.gpc})">💾 Save</button>`;
     }
@@ -965,7 +935,6 @@ window.recalc = function(){
     `;
     tbody.appendChild(tr);
 
-    // แจ้งเตือนสีแดงหากไม่พบความหนาแน่นวัตถุดิบและไม่มีน้ำหนักตัวแปล
     if(missingWeightData) {
       const warnTr = document.createElement('tr');
       warnTr.className = 'warn-row';
@@ -1063,7 +1032,7 @@ document.getElementById('applyWeightBtn').addEventListener('click', () => {
 
 document.getElementById('clearBtn').addEventListener('click', () => {
   if(confirm('คุณต้องการล้างข้อมูลสูตรปัจจุบันใช่หรือไม่?')){
-    ingredients = [];
+    window.ingredients = [];
     rowOverrides = {};
     overrideRowId = null;
     totalTargetGrams = null;
@@ -1088,10 +1057,6 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   }
 });
 
-function cleanLine(l){
-  return l.replace(/^[•\-\*\d\.\s\/xX]+/, '').trim();
-}
-
 document.getElementById('extractBtn').addEventListener('click', () => {
   const txt = document.getElementById('pasteBox').value.trim();
   const status = document.getElementById('extractStatus');
@@ -1101,7 +1066,7 @@ document.getElementById('extractBtn').addEventListener('click', () => {
     return;
   }
   
-  ingredients = [];
+  window.ingredients = [];
   rowOverrides = {};
   overrideRowId = null;
   totalTargetGrams = null;
@@ -1123,13 +1088,11 @@ document.getElementById('extractBtn').addEventListener('click', () => {
     const l = line.trim();
     if(!l) return;
 
-    // ค้นหาอุณหภูมิเตาอบซ่อนอยู่
     const tempM = l.match(/(\d+)\s*°?\s*[cC]\b/) || l.match(/(\d+)\s*องศา/);
     if(tempM && !foundOvenTemp){
       foundOvenTemp = tempM[1];
     }
 
-    // ตัวแปลงสกัดสูตรแยกข้อความ (Regex)
     const regex = /^([\d\s\/\.-]+)\s*(grams|gram|g|kg|oz|ounces|ounce|cups|cup|ถ้วยตวง|ถ้วย|tsp|teaspoons|teaspoon|ช้อนชา|tbsp|tablespoons|tablespoon|ช้อนโต๊ะ|eggs|egg|ฟอง)?\.?\s+(.*)$/i;
     const m = l.match(regex);
     if(m){
@@ -1139,7 +1102,7 @@ document.getElementById('extractBtn').addEventListener('click', () => {
       const mappedUnit = unitMap[unitStr] || 'g';
       const cat = detectCategory(nameStr) || 'Other / Custom';
 
-      ingredients.push({
+      window.ingredients.push({
         id: uid(), name: nameStr, category: cat, amount: amtStr,
         unit: mappedUnit, eggSize: 'Large (L, ~50g)', gpc:'', SR:0
       });
@@ -1150,13 +1113,12 @@ document.getElementById('extractBtn').addEventListener('click', () => {
     }
   });
 
-  if(ingredients.length > 0){
+  if(window.ingredients.length > 0){
     status.className = 'status-msg ok';
-    status.textContent = `สกัดสำเร็จเรียบร้อยเจอ ${ingredients.length} วัตถุดิบค่ะ!`;
+    status.textContent = `สกัดสำเร็จเรียบร้อยเจอ ${window.ingredients.length} วัตถุดิบค่ะ!`;
   } else {
     status.className = 'status-msg err';
     status.textContent = 'ไม่พบรูปแบบวัตถุดิบในข้อความ ระบบจะทำการสแกนข้อความแบบละเอียดแทนค่ะ';
-    // ค้นหาคำแบบสากลเผื่อกรณีไม่มีหน่วยตามปกติ
     lines.forEach(line => {
       const l = line.trim();
       if(!l) return;
@@ -1166,15 +1128,15 @@ document.getElementById('extractBtn').addEventListener('click', () => {
         const rest = m2[2].trim();
         if(isNaN(parseAmount(amt))) return;
         const cat = detectCategory(rest) || 'Other / Custom';
-        ingredients.push({
+        window.ingredients.push({
           id: uid(), name: rest, category: cat, amount: amt,
           unit: 'g', eggSize: 'Large (L, ~50g)', gpc:'', SR:0
         });
       }
     });
-    if(ingredients.length>0){
+    if(window.ingredients.length > 0){
       status.className = 'status-msg ok';
-      status.textContent = `สแกนแบบละเอียดดึงข้อมูลสำเร็จ ${ingredients.length} รายการค่ะ!`;
+      status.textContent = `สแกนแบบละเอียดดึงข้อมูลสำเร็จ ${window.ingredients.length} รายการค่ะ!`;
     }
   }
 
@@ -1199,7 +1161,6 @@ document.querySelectorAll('textarea').forEach(ta=>{
   ta.addEventListener('input',()=>adjustTextareaHeight(ta));
 });
 
-// บันทึกสูตรขนม (Firebase Cloud Storage)
 document.getElementById('saveBtn').addEventListener('click', async () => {
   const name = document.getElementById('recipeNameInput').value.trim();
   const category = document.getElementById('recipeCategory').value.trim() || 'General';
@@ -1210,7 +1171,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     status.textContent = 'กรุณากรอกชื่อสูตรก่อนกดเซฟด้วยนะคะ';
     return;
   }
-  if(ingredients.length===0){
+  if(!window.ingredients || window.ingredients.length===0){
     status.className = 'status-msg err';
     status.textContent = 'สูตรอาหารว่างเปล่า! กรุณาเพิ่มวัตถุดิบอย่างน้อย 1 รายการก่อนค่ะ';
     return;
@@ -1222,7 +1183,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   const data = {
     id: uid(), name, category,
     url: document.getElementById('recipeUrl').value.trim(),
-    ingredients,
+    ingredients: window.ingredients,
     notes: document.getElementById('notesBox').value,
     scalePct, scaleMode, overrideRowId, rowOverrides, totalTargetGrams,
     checkedResults: Array.from(checkedResults),
@@ -1261,7 +1222,7 @@ document.getElementById('saveChangesBtn').addEventListener('click', async () => 
   const data = {
     id: editingKey.split(':')[1], name, category,
     url: document.getElementById('recipeUrl').value.trim(),
-    ingredients,
+    ingredients: window.ingredients,
     notes: document.getElementById('notesBox').value,
     scalePct, scaleMode, overrideRowId, rowOverrides, totalTargetGrams,
     checkedResults: Array.from(checkedResults),
@@ -1299,9 +1260,7 @@ async function loadSavedList(){
       return;
     }
 
-    // เรียงตามเวลาแก้ไขล่าสุด
     items.sort((a,b) => new Date(b.data.updatedAt || 0) - new Date(a.data.updatedAt || 0));
-
     window.allSavedRecipes = items; 
     renderSavedList(items);
   } catch(e){
@@ -1370,7 +1329,10 @@ function renderSavedList(items) {
       const del = document.createElement('button');
       del.className = 'btn small danger';
       del.textContent = '✕';
-      del.onclick = () => deleteRecipe(item.key, item.data.name);
+      del.onclick = (e) => {
+        e.stopPropagation();
+        deleteRecipe(item.key, item.data.name);
+      };
       
       actions.appendChild(del);
       div.appendChild(actions);
@@ -1399,7 +1361,7 @@ document.getElementById('recipeSearch').addEventListener('input', e => {
 
 function loadRecipe(key, data){
   editingKey = key;
-  ingredients = data.ingredients || [];
+  window.ingredients = data.ingredients || [];
   rowOverrides = data.rowOverrides || {};
   overrideRowId = data.overrideRowId || null;
   totalTargetGrams = data.totalTargetGrams || null;
@@ -1486,7 +1448,6 @@ document.getElementById('exportPdfBtn').addEventListener('click', () => {
       }
    });
    
-   // เพิ่มแถว Total สรุปน้ำหนักกรัมปิดท้ายในใบพิมพ์ PDF
    if(lastTotalOrigGrams && !isNaN(lastTotalOrigGrams)){
       const factor = scalePct / 100;
       html += `<tr style="font-weight:bold; border-top:2px solid var(--ink);"><td style="padding-top:12px;">Total Weight</td><td style="text-align:right; padding-top:12px;">${round1(lastTotalOrigGrams * factor)} g</td></tr>`;
