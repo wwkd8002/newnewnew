@@ -51,25 +51,18 @@
     else window.__authReadyCallbacks.push(cb);
   };
 
-  // ปรับปรุงฟังก์ชันฟังพจนานุกรมวัตถุดิบ ให้ปลอดภัย 100% ไม่ขัดขวางการโหลดหน้าเว็บ
   window.globalIngredientDb = {};
   function listenToIngredientDb() {
     try {
       const ingRef = ref(db, 'ingredient_dictionary');
       onValue(ingRef, (snapshot) => {
-        try {
-          if (snapshot && snapshot.exists()) {
-            window.globalIngredientDb = snapshot.val() || {};
-          } else {
-            window.globalIngredientDb = {};
-          }
-        } catch(innerErr) {
-          console.error("Error parsing dictionary snapshot:", innerErr);
+        if (snapshot.exists()) {
+          window.globalIngredientDb = snapshot.val();
+        } else {
           window.globalIngredientDb = {};
         }
-        // รันฟังก์ชันคำนวณใหม่ถ้าพร้อม โดยไม่ยอมให้โค้ดพัง
-        if (typeof window.recalc === 'function') {
-          try { window.recalc(); } catch(e) { console.error("Recalc failed inside listener:", e); }
+        if (typeof window.recalc === 'function' && window.ingredients && window.ingredients.length > 0) {
+          window.recalc();
         }
       }, (error) => {
         console.error("Firebase read dictionary error:", error);
@@ -124,8 +117,6 @@
       const emailSpan = document.getElementById('authUserEmail');
       if(emailSpan) emailSpan.textContent = user.email;
     }
-    
-    // โหลดฐานข้อมูลดิคชันนารี และ ปลดล็อกให้แอปทำงานต่อทันทีแยกกันคนละส่วน
     listenToIngredientDb(); 
     fireAuthReady();
   });
@@ -136,30 +127,19 @@
       await set(ref(db, path), JSON.parse(val));
     },
     async listPrefix() {
-      try {
-        const snapshot = await get(ref(db, 'recipe'));
-        if (!snapshot || !snapshot.exists()) return [];
-        const data = snapshot.val();
-        if (!data) return [];
-        const keys = [];
-        for (let id in data) {
-          keys.push('recipe:' + id);
-        }
-        return keys;
-      } catch(e) {
-        console.error("Firebase list error:", e);
-        return [];
+      const snapshot = await get(ref(db, 'recipe'));
+      if (!snapshot.exists()) return [];
+      const data = snapshot.val();
+      const keys = [];
+      for (let id in data) {
+        keys.push('recipe:' + id);
       }
+      return keys;
     },
     async get(key) {
-      try {
-        const path = key.replace(/:/g, '/');
-        const snapshot = await get(ref(db, path));
-        return (snapshot && snapshot.exists()) ? JSON.stringify(snapshot.val()) : null;
-      } catch(e) {
-        console.error("Firebase get error:", e);
-        return null;
-      }
+      const path = key.replace(/:/g, '/');
+      const snapshot = await get(ref(db, path));
+      return snapshot.exists() ? JSON.stringify(snapshot.val()) : null;
     },
     async delete(key) {
       const path = key.replace(/:/g, '/');
@@ -343,7 +323,7 @@
   footer { text-align: center; font-family: var(--sans); font-size: 11.5px; color: var(--ink-soft); margin-top: 22px; line-height: 1.7; }
 
   .layout{display:flex;gap:20px;align-items:flex-start}
-  .sidebar{width:280px;position:sticky;top:15px}
+  .sidebar{width:320px;position:sticky;top:15px}
   .main-content{flex:1;min-width:0}
   .saved-card details summary{cursor:pointer;font-family:var(--sans);font-weight:600;padding:6px 0;}
   @media (max-width:900px){
@@ -454,30 +434,29 @@
   </header>
 <div class="layout">
 <div class="sidebar">
-<div class="card saved-card">
-<details open>
-<summary>📁 Saved Recipes</summary>
 <div class="card">
-   <h2>Save recipe</h2>
-    <div class="card-note">Save your recipes securely on the cloud.</div>
-    
-    <div style="margin-bottom: 12px;">
-      <input type="text" id="recipeCategory" placeholder="📁 Category (e.g., Chocolate cookies, Oatmeal raisin)" list="categorySuggestions" style="width: 100%; padding: 9px 10px; border: 1px solid var(--paper-line); border-radius: 6px; font-family: var(--sans); font-size: 14px; box-sizing: border-box;">
+<details open class="saved-card">
+<summary>📁 Saved Recipes</summary>
+  <div style="margin-top: 12px; padding: 10px; background: rgba(54,43,34,0.02); border-radius: 8px; border: 1px dashed var(--paper-line);">
+    <h2 style="font-size: 11px; margin-bottom: 8px;">Save current recipe</h2>
+    <div style="margin-bottom: 8px;">
+      <input type="text" id="recipeCategory" placeholder="📁 Category (e.g., Chocolate cookies)" list="categorySuggestions" style="width: 100%; padding: 8px; border: 1px solid var(--paper-line); border-radius: 6px; font-family: var(--sans); font-size: 13px;">
       <datalist id="categorySuggestions">
         <option value="Chocolate cookies">
         <option value="Oatmeal raisin">
       </datalist>
     </div>
-
-    <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
-      <input type="text" id="recipeNameInput" placeholder="Name this recipe, e.g. Chocolate chip cookies" style="flex:1; min-width:180px; padding:9px 10px; border:1px solid var(--paper-line); border-radius:6px; font-family:var(--sans); font-size:14px;">
-      <button class="btn" id="saveBtn">Save this recipe</button>
-      <button class="btn secondary" id="saveChangesBtn" style="display:none;">💾 Save Changes</button>
+    <div style="margin-bottom: 8px;">
+      <input type="text" id="recipeNameInput" placeholder="Recipe name" style="width: 100%; padding: 8px; border: 1px solid var(--paper-line); border-radius: 6px; font-family: var(--sans); font-size: 13px;">
     </div>
-    <div id="saveStatus" class="status-msg"></div>
-    <input id="recipeSearch" class="saved-search" type="text" placeholder="🔍 Search recipe...">
-    <div id="savedList" class="saved-list" style="margin-top:12px;"></div>
+    <div style="display: flex; gap: 6px;">
+      <button class="btn small" id="saveBtn" style="width: 100%;">Save New</button>
+      <button class="btn small gold" id="saveChangesBtn" style="display:none; width: 100%;">Save Changes</button>
+    </div>
+    <div id="saveStatus" class="status-msg" style="font-size: 11px;"></div>
   </div>
+  <input id="recipeSearch" class="saved-search" type="text" placeholder="🔍 Search recipe...">
+  <div id="savedList" class="saved-list"></div>
 </details>
 </div>
 </div>
@@ -585,7 +564,7 @@ const DENSITY = {
   "Chocolate": 170, "Other / Custom": null
 };
 
-const SUGAR_CATEGORIES = ["Granulated sugar", "Brown sugar, packed"];
+const SUGAR_CATEGORIES = ["Granulated sugar", "Brown sugar, packed", "Powdered sugar"];
 const WEIGHT_UNIT_G = { "g": 1, "kg": 1000, "oz": 28.3495 };
 const EGG_PARTS = {
   "Small (S, ~38g)":       {whole:38, yolk:14, white:24},
@@ -676,7 +655,6 @@ function addRow(prefill){
 
 function renderRows(){
   const container = document.getElementById('rows');
-  if(!container) return;
   container.innerHTML = '';
   window.ingredients.forEach(row => {
     const card = document.createElement('div');
@@ -686,7 +664,7 @@ function renderRows(){
     if(row.unit === 'cup' || row.unit === 'tsp' || row.unit === 'tbsp'){
       const isCustom = row.category === 'Other / Custom';
       const defaultG = DENSITY[row.category] || '';
-      const cleanKey = row.name ? row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "") : "";
+      const cleanKey = row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "");
       const fbWeight = window.globalIngredientDb && window.globalIngredientDb[cleanKey];
       const placeholderText = fbWeight ? `FB: ${fbWeight}g` : (defaultG ? `${defaultG}g` : 'e.g. 150');
 
@@ -728,7 +706,7 @@ function renderRows(){
       <div class="ing-fields">
         <div class="field name">
           <label>Ingredient Name</label>
-          <input type="text" class="row-name" data-id="${row.id}" value="${row.name||''}" placeholder="e.g. Bread flour, Raisins">
+          <input type="text" class="row-name" data-id="${row.id}" value="${row.name}" placeholder="e.g. Bread flour, Raisins">
         </div>
         <div class="field category">
           <label>Density Category</label>
@@ -738,7 +716,7 @@ function renderRows(){
         </div>
         <div class="field amount">
           <label>Amount</label>
-          <input type="text" class="row-amount" data-id="${row.id}" value="${row.amount||''}" placeholder="e.g. 1 1/2, 250">
+          <input type="text" class="row-amount" data-id="${row.id}" value="${row.amount}" placeholder="e.g. 1 1/2, 250">
         </div>
         <div class="field unit">
           <label>Unit</label>
@@ -836,7 +814,7 @@ function getRowOrigGrams(row){
   if(row.unit==='tsp') cups = amt/48;
   if(row.unit==='tbsp') cups = amt/16;
 
-  const cleanKey = row.name ? row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "") : "";
+  const cleanKey = row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "");
   const fbWeight = window.globalIngredientDb && window.globalIngredientDb[cleanKey];
 
   if(row.gpc && !isNaN(parseFloat(row.gpc))){
@@ -852,7 +830,6 @@ function getRowOrigGrams(row){
 
 window.recalc = function(){
   const tbody = document.getElementById('resultsBody');
-  if(!tbody) return;
   tbody.innerHTML = '';
   
   if(!window.ingredients || window.ingredients.length===0){
@@ -891,7 +868,7 @@ window.recalc = function(){
     scalePct = factor * 100;
     document.getElementById('scaleReadout').innerHTML = Math.round(scalePct) + '<span> %</span>';
     const cp = document.getElementById('customPct');
-    if(cp && document.activeElement !== cp) cp.value = Math.round(scalePct);
+    if(document.activeElement !== cp) cp.value = Math.round(scalePct);
   } else if(scaleMode==='override' && overrideRowId!=null && allRowsValid){
     const target = computedRows.find(x=>x.row.id===overrideRowId);
     if(target && !isNaN(target.finalOrigG) && target.finalOrigG>0){
@@ -901,7 +878,7 @@ window.recalc = function(){
         scalePct = factor * 100;
         document.getElementById('scaleReadout').innerHTML = Math.round(scalePct) + '<span> %</span>';
         const cp = document.getElementById('customPct');
-        if(cp && document.activeElement !== cp) cp.value = Math.round(scalePct);
+        if(document.activeElement !== cp) cp.value = Math.round(scalePct);
       }
     }
   }
@@ -912,7 +889,7 @@ window.recalc = function(){
     const tr = document.createElement('tr');
     if(checkedResults.has(row.id)) tr.className = 'checked-row';
 
-    const cleanKey = row.name ? row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "") : "";
+    const cleanKey = row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "");
     const hasFbRecord = window.globalIngredientDb && window.globalIngredientDb[cleanKey];
 
     const isCupUnit = ['cup','tsp','tbsp'].includes(row.unit);
@@ -1010,7 +987,6 @@ document.getElementById('resultsBody').addEventListener('change', e => {
 const PRESETS = [25,33.3,50,66.7,75,100,150,200,300];
 function renderPills(){
   const p = document.getElementById('pills');
-  if(!p) return;
   p.innerHTML = PRESETS.map(v => `
     <button class="pill ${scaleMode==='pct'&&scalePct===v?'active':''}" onclick="setPill(${v})">${v}%</button>
   `).join('');
@@ -1176,7 +1152,6 @@ document.getElementById('extractBtn').addEventListener('click', () => {
 });
 
 function adjustTextareaHeight(el){
-  if(!el) return;
   el.style.height = 'auto';
   el.style.height = el.scrollHeight + 'px';
 }
@@ -1265,7 +1240,6 @@ document.getElementById('saveChangesBtn').addEventListener('click', async () => 
 
 async function loadSavedList(){
   const container = document.getElementById('savedList');
-  if(!container) return;
   container.innerHTML = '<div style="font-size:13px;color:var(--ink-soft);">กำลังโหลดรายการสูตรบนระบบคลาวด์...</div>';
 
   try {
@@ -1294,7 +1268,6 @@ async function loadSavedList(){
 
 function renderSavedList(items) {
   const container = document.getElementById('savedList');
-  if(!container) return;
   container.innerHTML = '';
 
   const categories = {};
@@ -1404,10 +1377,8 @@ function loadRecipe(key, data){
   if(url){
     document.getElementById('recipeUrl').style.display = 'none';
     const link = document.getElementById('recipeUrlLink');
-    if(link) {
-      link.href = url;
-      link.textContent = '🔗 ' + (data.name || 'Original Recipe Link');
-    }
+    link.href = url;
+    link.textContent = '🔗 ' + (data.name || 'Original Recipe Link');
     document.getElementById('recipeUrlView').style.display = 'flex';
   } else {
     document.getElementById('recipeUrl').style.display = 'block';
@@ -1415,8 +1386,7 @@ function loadRecipe(key, data){
   }
 
   document.getElementById('pasteBox').value = '';
-  const cp = document.getElementById('customPct');
-  if(cp) cp.value = (scaleMode==='pct' && !PRESETS.includes(scalePct)) ? Math.round(scalePct) : '';
+  document.getElementById('customPct').value = (scaleMode==='pct' && !PRESETS.includes(scalePct)) ? Math.round(scalePct) : '';
   document.getElementById('scaleReadout').innerHTML = Math.round(scalePct) + '<span> %</span>';
   
   document.getElementById('saveChangesBtn').style.display = 'block';
@@ -1453,7 +1423,6 @@ document.getElementById('editRecipeUrlBtn').addEventListener('click', () => {
 
 document.getElementById('exportPdfBtn').addEventListener('click', () => {
    const area = document.getElementById('printArea');
-   if(!area) return;
    const name = document.getElementById('recipeNameInput').value.trim() || 'Untitled Scaled Recipe';
    const notes = document.getElementById('notesBox').value.trim();
    const url = document.getElementById('recipeUrl').value.trim();
