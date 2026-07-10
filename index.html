@@ -993,16 +993,24 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
   statusEl.textContent='กำลังแกะสูตร...';
 
-  const parseUnicodeFraction = (str) => {
-    const fractions = {'½': '1/2', '⅓': '1/3', '¼': '1/4', '¾': '3/4', '⅕': '1/5', '⅙': '1/6', '⅛': '1/8'};
+  cconst parseUnicodeFraction = (str) => {
+    // ใส่รหัสแปลความหมายสัญลักษณ์เศษส่วนครบทุกตัวที่มีในระบบสากล (Unicode) ล่วงหน้าทั้งหมด
+    const fractions = {
+      '½': '1/2', '⅓': '1/3', '¼': '1/4', '¾': '3/4', 
+      '⅕': '1/5', '⅖': '2/5', '⅗': '3/5', '⅘': '4/5', 
+      '⅙': '1/6', '⅚': '5/6', 
+      '⅛': '1/8', '⅜': '3/8', '⅝': '5/8', '⅞': '7/8',
+      '⅐': '1/7', '⅑': '1/9', '⅟': '1/',  '⅒': '1/10'
+    };
     
-    // 1. ดักจับกรณีมีคำเชื่อมคั่นกลาง เช่น "1 + ¼", "1 and ¼", "1 plus ¼" หรือพิมพ์ติดกันแบบ "1+¼"
-    str = str.replace(/(\d+)[ \t]*(?:\s+and\s+|\s+plus\s+|\s+และ\s+|\+)[ \t]*([½⅓¼¾⅕⅙⅛])/gi, (m, whole, sym) => {
+    // 1. ดักจับกรณีมีคำเชื่อมคั่นกลาง เช่น "1 + ⅚", "1 and ⅚", "1 plus ⅚" หรือพิมพ์ติดกันแบบ "1+⅚"
+    // ขยายตัวจับข้อความให้ดักอักษรเศษส่วนทุกตัว [½⅓¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞⅐⅑⅟⅒]
+    str = str.replace(/(\d+)[ \t]*(?:\s+and\s+|\s+plus\s+|\s+และ\s+|\+)[ \t]*([½⅓¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞⅐⅑⅟⅒])/gi, (m, whole, sym) => {
       return whole + ' ' + fractions[sym];
     });
 
-    // 2. ดักจับกรณีปกติ เช่น "¼" หรือพิมพ์เว้นวรรคธรรมดา "1 ¼"
-    return str.replace(/(\d)?[ \t]*([½⅓¼¾⅕⅙⅛])/g, (m, wholeDigit, sym) => {
+    // 2. ดักจับกรณีปกติ เช่น "⅚" หรือพิมพ์เว้นวรรคธรรมดา "1 ⅚"
+    return str.replace(/(\d)?[ \t]*([½⅓¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞⅐⅑⅟⅒])/g, (m, wholeDigit, sym) => {
       const frac = fractions[sym];
       return wholeDigit ? (wholeDigit + ' ' + frac) : frac;
     });
@@ -1010,7 +1018,7 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
   let text = parseUnicodeFraction(rawText);
   
-  // 3. จัดการรวมกรณีที่เป็นเศษส่วนพิมพ์ธรรมดาที่หลงเหลืออยู่ (เช่น 1 + 1/4 หรือ 1 and 1/4)
+  // 3. จัดการรวมกรณีที่เป็นเศษส่วนพิมพ์ธรรมดาที่หลงเหลืออยู่ (เช่น 1 + 5/6 หรือ 1 and 5/6)
   text = text.replace(/(\d+)[ \t]*(?:\s+and\s+|\s+plus\s+|\s+และ\s+|\+)[ \t]*(\d+\/\d+)/gi, '$1 $2');
   
   // ล้างวงเล็บน้ำหนักกรัมซ้ำซ้อน
