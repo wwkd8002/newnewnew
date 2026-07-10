@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&display=swap" rel="stylesheet">
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-  import { getDatabase, ref, set, get, remove, onValue } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+  import { getDatabase, ref, set, get, remove } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
   const firebaseConfig = {
@@ -25,6 +25,8 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
+  // ★ เพิ่มใหม่: ระบบ Login ด้วย Google (Firebase Authentication)
+  // อีเมลที่อนุญาตต้องตรงกับที่ตั้งไว้ใน Firebase Realtime Database Rules (auth.token.email === ...)
   const ALLOWED_EMAIL = "pairqaz@gmail.com";
   const auth = getAuth(app);
   const googleProvider = new GoogleAuthProvider();
@@ -38,6 +40,9 @@
   };
   window.doSignOut = function(){ signOut(auth); };
 
+  // ★ เพิ่มใหม่: ระบบ "รอ auth พร้อมก่อนค่อยโหลดข้อมูล" แทนการเดาเวลาด้วย setTimeout
+  // เพราะเดิม setTimeout(1000ms) อาจยิงคำสั่งอ่านข้อมูลก่อนที่ login จะเสร็จจริง ทำให้ถูก
+  // Firebase Rules ปฏิเสธ (permission denied) และขึ้น "Unable to load list." เวลาที่ login ใช้เวลานานกว่า 1 วิ
   window.__authReady = false;
   window.__authReadyCallbacks = [];
   function fireAuthReady(){
@@ -51,41 +56,6 @@
     else window.__authReadyCallbacks.push(cb);
   };
 
-  // แก้ไขส่วนดึงข้อมูลให้ปลอดภัย ไม่บล็อกการทำงานอื่นของหน้าเว็บ
-  window.globalIngredientDb = {};
-  function listenToIngredientDb() {
-    try {
-      const ingRef = ref(db, 'ingredient_dictionary');
-      onValue(ingRef, (snapshot) => {
-        if (snapshot.exists()) {
-          window.globalIngredientDb = snapshot.val();
-        } else {
-          window.globalIngredientDb = {};
-        }
-        if (typeof window.recalc === 'function' && window.ingredients && window.ingredients.length > 0) {
-          window.recalc();
-        }
-      }, (error) => {
-        console.error("Firebase read dictionary error:", error);
-      });
-    } catch (e) {
-      console.error("Setup dictionary listener failed:", e);
-    }
-  }
-
-  window.saveIngredientToDb = async function(name, weightPerCup) {
-    if (!name || isNaN(weightPerCup) || weightPerCup <= 0) return;
-    const key = name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "");
-    if (!key) return;
-    try {
-      await set(ref(db, 'ingredient_dictionary/' + key), parseFloat(weightPerCup));
-      alert(`บันทึกสำเร็จ: 1 cup ของ "${name}" = ${weightPerCup} กรัม เรียบร้อยค่ะ!`);
-    } catch(e) {
-      console.error(e);
-      alert('บันทึกไม่สำเร็จ: ' + e.message);
-    }
-  };
-
   onAuthStateChanged(auth, function(user){
     const overlay = document.getElementById('authOverlay');
     const appWrap = document.getElementById('appWrap');
@@ -94,6 +64,7 @@
     const userBadge = document.getElementById('authUserBadge');
 
     if(!user){
+      // ยังไม่ได้ login
       overlay.style.display='flex';
       appWrap.style.display='none';
       loginBox.style.display='block';
@@ -103,6 +74,8 @@
     }
 
     if(user.email !== ALLOWED_EMAIL){
+      // login แล้วแต่ไม่ใช่อีเมลที่อนุญาต (Firebase Rules จะบล็อกการอ่าน/เขียนอยู่แล้ว
+      // ส่วนนี้แค่โชว์ข้อความที่เข้าใจง่ายกว่า error จาก Firebase ตรงๆ)
       overlay.style.display='flex';
       appWrap.style.display='none';
       loginBox.style.display='none';
@@ -111,6 +84,7 @@
       return;
     }
 
+    // login สำเร็จด้วยอีเมลที่อนุญาต
     overlay.style.display='none';
     appWrap.style.display='block';
     if(userBadge){
@@ -118,7 +92,6 @@
       const emailSpan = document.getElementById('authUserEmail');
       if(emailSpan) emailSpan.textContent = user.email;
     }
-    listenToIngredientDb(); 
     fireAuthReady();
   });
 
@@ -130,8 +103,10 @@
     async listPrefix() {
       const snapshot = await get(ref(db, 'recipe'));
       if (!snapshot.exists()) return [];
+      
       const data = snapshot.val();
       const keys = [];
+      
       for (let id in data) {
         keys.push('recipe:' + id);
       }
@@ -298,6 +273,7 @@
   .warn-row td { color: var(--rose); font-size: 12.5px; font-family: var(--sans); font-style: italic; }
   .empty-msg { font-family: var(--sans); color: var(--ink-soft); font-size: 14px; text-align: center; padding: 24px 0; }
 
+  /* ===== Ingredient checklist checkbox (tick off as you add each ingredient) ===== */
   th.check-col, td.check-col { width: 26px; padding-right: 0; padding-left: 4px; }
   .ing-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent-deep); vertical-align: middle; }
   tr.checked-row td.name-cell, tr.checked-row td.orig { text-decoration: line-through; opacity: .5; }
@@ -309,7 +285,7 @@
     overflow-y: auto;
     padding-right: 4px;
   }
-  .recipe-category-content {
+.recipe-category-content {
     max-height: 250px;
     overflow-y: auto;
   }
@@ -323,6 +299,11 @@
 
   footer { text-align: center; font-family: var(--sans); font-size: 11.5px; color: var(--ink-soft); margin-top: 22px; line-height: 1.7; }
 
+  @media (max-width:480px){
+    h1 { font-size: 26px; }
+    .field.name, .field.category { flex-basis: 100%; }
+  }
+
   .layout{display:flex;gap:20px;align-items:flex-start}
   .sidebar{width:280px;position:sticky;top:15px}
   .main-content{flex:1;min-width:0}
@@ -332,6 +313,7 @@
     .sidebar{width:100%;position:static}
   }
 
+  /* ===== Choose a scale + Results after scaling: side by side on desktop (per user request) ===== */
   .scale-results-row{display:flex; gap:20px; align-items:flex-start;}
   .scale-col{flex:1 1 320px; min-width:0;}
   .results-col{flex:1.3 1 380px; min-width:0; position:sticky; top:15px;}
@@ -355,50 +337,49 @@
     font-family:var(--sans);
   }
 
-  @media print{
-    body > *{ display:none !important; }
-    body > #printArea{ display:block !important; }
-    #printArea,#printArea *{visibility:visible!important;}
-    #printArea{position:static!important;left:0;top:0;width:100%;background:#fff;padding:24px;font-family:Georgia,'Times New Roman',serif;}
-    .no-print{display:none!important;}
-  }
+@media print{
+  /* ★ แก้ไข: เดิมใช้ visibility:hidden ซึ่งซ่อนแค่ "มองไม่เห็น" แต่ยังกินพื้นที่ในหน้าเว็บอยู่เหมือนเดิม
+     พอเนื้อหาจริงในหน้าเว็บยาวมาก (sidebar, รายการวัตถุดิบ, ตาราง Results ฯลฯ) พื้นที่ที่ถูกซ่อนไว้
+     (แต่ยังกินความสูงอยู่) จะทำให้เบราว์เซอร์แบ่งหน้าพิมพ์ตามความสูงทั้งหมดนั้น กลายเป็นหน้าว่างๆ ตามมา
+     ตอนนี้เปลี่ยนไปใช้ display:none แทน ซึ่งเอาออกจากผังหน้าจริงๆ ไม่กินพื้นที่อีกต่อไป */
+  body > *{ display:none !important; }
+  body > #printArea{ display:block !important; }
+  #printArea,#printArea *{visibility:visible!important;}
+  #printArea{position:static!important;left:0;top:0;width:100%;background:#fff;padding:24px;font-family:Georgia,'Times New Roman',serif;}
+  .no-print{display:none!important;}
+}
 
-  #authOverlay{
-    position:fixed; inset:0; background:var(--paper); z-index:1000;
-    display:flex; align-items:center; justify-content:center; padding:20px;
-  }
-  .auth-card{
-    background:var(--card); border:1px solid var(--paper-line); border-radius:10px;
-    padding:32px 28px; max-width:360px; width:100%; text-align:center;
-    box-shadow:0 4px 24px rgba(54,43,34,.12); font-family:var(--sans);
-  }
-  .auth-card h2{ font-family:inherit; font-size:18px; margin:0 0 6px; color:var(--ink); }
-  .auth-card p{ font-size:13.5px; color:var(--ink-soft); margin:0 0 20px; line-height:1.5; }
-  .google-signin-btn{
-    display:inline-flex; align-items:center; justify-content:center; gap:10px;
-    width:100%; padding:11px 16px; border:1px solid var(--paper-line); border-radius:6px;
-    background:#fff; color:var(--ink); font-family:var(--sans); font-size:14px; font-weight:600;
-    cursor:pointer;
-  }
-  .google-signin-btn:hover{ background:#f7f4ec; }
-  #authError{ margin-top:14px; font-size:12.5px; color:var(--rose); font-family:var(--sans); }
-  #authDenied p{ color:var(--rose); }
-  .auth-user-badge{
-    display:none; align-items:center; gap:10px; justify-content:flex-end;
-    font-family:var(--sans); font-size:12.5px; color:var(--ink-soft); margin-bottom:10px;
-  }
-  .auth-user-badge button{
-    border:1px solid var(--paper-line); background:#fff; border-radius:6px; padding:5px 10px;
-    font-family:var(--sans); font-size:12px; cursor:pointer; color:var(--ink);
-  }
-  .auth-user-badge button:hover{ background:#f1e0dc; }
+/* ===== Login overlay (Google Sign-In) ===== */
+#authOverlay{
+  position:fixed; inset:0; background:var(--paper); z-index:1000;
+  display:flex; align-items:center; justify-content:center; padding:20px;
+}
+.auth-card{
+  background:var(--card); border:1px solid var(--paper-line); border-radius:10px;
+  padding:32px 28px; max-width:360px; width:100%; text-align:center;
+  box-shadow:0 4px 24px rgba(54,43,34,.12); font-family:var(--sans);
+}
+.auth-card h2{ font-family:inherit; font-size:18px; margin:0 0 6px; color:var(--ink); }
+.auth-card p{ font-size:13.5px; color:var(--ink-soft); margin:0 0 20px; line-height:1.5; }
+.google-signin-btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:10px;
+  width:100%; padding:11px 16px; border:1px solid var(--paper-line); border-radius:6px;
+  background:#fff; color:var(--ink); font-family:var(--sans); font-size:14px; font-weight:600;
+  cursor:pointer;
+}
+.google-signin-btn:hover{ background:#f7f4ec; }
+#authError{ margin-top:14px; font-size:12.5px; color:var(--rose); font-family:var(--sans); }
+#authDenied p{ color:var(--rose); }
+.auth-user-badge{
+  display:none; align-items:center; gap:10px; justify-content:flex-end;
+  font-family:var(--sans); font-size:12.5px; color:var(--ink-soft); margin-bottom:10px;
+}
+.auth-user-badge button{
+  border:1px solid var(--paper-line); background:#fff; border-radius:6px; padding:5px 10px;
+  font-family:var(--sans); font-size:12px; cursor:pointer; color:var(--ink);
+}
+.auth-user-badge button:hover{ background:#f1e0dc; }
 
-  .quick-save-btn {
-    background: var(--gold); border: none; color: white; padding: 3px 7px;
-    border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;
-    margin-left: 6px; display: inline-flex; align-items: center; gap: 3px;
-  }
-  .quick-save-btn:hover { background: #b08430; }
 </style>
 </head>
 <body>
@@ -566,6 +547,16 @@ const DENSITY = {
   "Chocolate": 170, "Other / Custom": null
 };
 
+const LIQUID_DENSITY = {
+  "Milk":1.03, "Whole milk":1.03, "Low fat milk":1.03, "Skim milk":1.035, "Buttermilk":1.03,
+  "Evaporated milk":1.06, "Condensed milk":1.28, "Heavy cream":1.02, "Double cream":1.01,
+  "Whipping cream":1.01, "Sour cream":0.98, "Greek yogurt":1.08, "Yogurt":1.03,
+  "Coconut milk":1.02, "Coconut cream":0.97, "Water":1.00, "Vanilla extract":0.95,
+  "Vanilla paste":1.10, "Lemon juice":1.03, "Coffee":1.00, "Espresso":1.01,
+  "Vegetable oil":0.92, "Canola oil":0.92, "Olive oil":0.91, "Melted butter":0.96,
+  "Honey":1.42, "Maple syrup":1.32, "Corn syrup":1.48, "Glucose syrup":1.54, "Molasses":1.40
+};
+
 const SUGAR_CATEGORIES = ["Granulated sugar", "Brown sugar, packed"];
 const WEIGHT_UNIT_G = { "g": 1, "kg": 1000, "oz": 28.3495 };
 const EGG_PARTS = {
@@ -577,15 +568,16 @@ const EGG_PARTS = {
 const EGG_G = Object.fromEntries(Object.entries(EGG_PARTS).map(([k,v])=>[k,v.whole]));
 const SUGAR_REDUCTION_PRESETS = [0,10,15,20,25,30];
 
-window.ingredients = [];
+let ingredients = [];
 let scalePct = 100;
 let scaleMode = 'pct';
 let overrideRowId = null;
 let rowOverrides = {};
 let totalTargetGrams = null;
 let lastTotalOrigGrams = null;
+let recipeOvenTempC = null;
 let editingKey = null;
-let checkedResults = new Set();
+let checkedResults = new Set(); // เก็บ id ของวัตถุดิบที่ติ๊กว่าใส่ไปแล้ว (ในตาราง Results after scaling)
 
 function uid(){ return 'r'+Math.random().toString(36).slice(2,9); }
 function isSugarRow(row){ return SUGAR_CATEGORIES.includes(row.category); }
@@ -605,7 +597,7 @@ function parseAmount(str) {
 
 const CATEGORY_RULES = [
   ['brown sugar', 'Brown sugar, packed'], ['powdered sugar', 'Powdered sugar'],
-  ['icing sugar', 'Powded sugar'], ['confectioner', 'Powdered sugar'],
+  ['icing sugar', 'Powdered sugar'], ['confectioner', 'Powdered sugar'],
   ['granulated sugar', 'Granulated sugar'], ['white sugar', 'Granulated sugar'],
   ['caster sugar', 'Granulated sugar'], ['sugar', 'Granulated sugar'],
   ['cake flour', 'Cake flour'], ['bread flour', 'Bread flour'],
@@ -618,16 +610,24 @@ const CATEGORY_RULES = [
   ['milk', 'Milk'], ['water', 'Water'], ['honey', 'Honey'],
   ['maple', 'Maple syrup'], ['oat', 'Rolled oats'],
   ['chocolate chip', 'Chocolate chips'], ['choc chip', 'Chocolate chips'],
-  ['chocolate', 'Chocolate'], ['walnut', 'Chopped nuts'],
-  ['pecan', 'Chopped nuts'], ['almond', 'Chopped nuts'],
-  ['hazelnut', 'Chopped nuts'], ['nuts', 'Chopped nuts'],
-  ['baking soda', 'Baking soda'], ['bicarbonate of soda', 'Baking soda'],
-  ['baking powder', 'Baking powder'], ['salt', 'Salt'],
-  ['vanilla', 'Vanilla extract'], ['cinnamon', 'Ground cinnamon'],
-  ['corn starch', 'Cornstarch'], ['cornstarch', 'Cornstarch'],
-  ['cornflour', 'Cornstarch'], ['yeast', 'Yeast'],
-  ['lemon juice', 'Lemon juice'], ['buttermilk','Buttermilk'],
-  ['coconut milk','Coconut milk'], ['coconut cream','Coconut cream']
+  ['chocolate', 'Chocolate'],
+  ['walnut', 'Chopped nuts'], ['pecan', 'Chopped nuts'],
+  ['almond', 'Chopped nuts'], ['hazelnut', 'Chopped nuts'],
+  ['nuts', 'Chopped nuts'], ['baking soda', 'Baking soda'],
+  ['bicarbonate of soda', 'Baking soda'], ['baking powder', 'Baking powder'],
+  ['salt', 'Salt'], ['vanilla', 'Vanilla extract'],
+  ['cinnamon', 'Ground cinnamon'], ['corn starch', 'Cornstarch'],
+  ['cornstarch', 'Cornstarch'], ['cornflour', 'Cornstarch'],
+  ['yeast', 'Yeast'], ['lemon juice', 'Lemon juice'],
+  ['buttermilk','Buttermilk'],['whole milk','Milk'],['skim milk','Milk'],
+  ['low fat milk','Milk'],['greek yogurt','Other / Custom'],
+  ['yogurt','Other / Custom'],['sour cream','Other / Custom'],
+  ['evaporated milk','Other / Custom'],['condensed milk','Other / Custom'],
+  ['coconut milk','Coconut milk'],['coconut cream','Coconut cream'],
+  ['olive oil','Vegetable oil'],['canola oil','Vegetable oil'],
+  ['corn syrup','Other / Custom'],['glucose syrup','Other / Custom'],
+  ['molasses','Other / Custom'],['espresso','Espresso'],
+  ['coffee','Coffee'],['melted butter','Butter']
 ];
 
 function detectCategory(name){
@@ -647,796 +647,929 @@ function detectEggPart(name){
 }
 
 function addRow(prefill){
-  window.ingredients.push(Object.assign({
-    id: uid(), name:'', category:'All-purpose flour', amount:'', unit:'g',
-    eggSize:'Large (L, ~50g)', gpc:'', SR:0
-  }, prefill));
+  ingredients.push(Object.assign({
+    id: uid(), name:'', category:'All-purpose flour', amount:'', unit:'cup',
+    customGpc:'', eggSize:'Large (L, ~50g)', sugarReduction:0
+  }, prefill||{}));
   renderRows();
-  recalc();
+  renderResults();
+}
+
+function removeRow(id){
+  ingredients = ingredients.filter(r=>r.id!==id);
+  if(overrideRowId===id){ overrideRowId=null; scaleMode='pct'; }
+  checkedResults.delete(id);
+  renderRows();
+  renderResults();
+}
+
+function unitOptionsFor(category){
+  if(category === "Other / Custom") return ["g","kg","oz","cup","tbsp","tsp","ml","egg"];
+  return ["cup","tbsp","tsp","ml","g","kg","oz","egg"];
+}
+
+function gramsPerCup(row){
+  if(row.category === "Other / Custom") return row.customGpc ? parseFloat(row.customGpc) : null;
+  return DENSITY[row.category];
+}
+
+function originalGrams(row){
+  const amt = parseAmount(row.amount);
+  if(isNaN(amt)) return null;
+  if(row.unit==='egg') return amt * EGG_PARTS[row.eggSize][detectEggPart(row.name)];
+  if(WEIGHT_UNIT_G[row.unit]) return amt * WEIGHT_UNIT_G[row.unit];
+  const gpc = gramsPerCup(row);
+  if(gpc==null || isNaN(gpc)) return null;
+  if(row.unit==='cup') return amt * gpc;
+  if(row.unit==='tbsp') return amt * (gpc/16);
+  if(row.unit==='tsp') return amt * (gpc/48);
+  if(row.unit==='ml'){
+    const d=LIQUID_DENSITY[row.category];
+    return d? amt*d:null;
+  }
+  return null;
+}
+
+function effectiveOrig(row, orig){
+  if(isSugarRow(row)){
+    const red = parseFloat(row.sugarReduction)||0;
+    return orig * (1 - red/100);
+  }
+  return orig;
 }
 
 function renderRows(){
-  const container = document.getElementById('rows');
-  container.innerHTML = '';
-  window.ingredients.forEach(row => {
+  const box = document.getElementById('rows');
+  box.innerHTML = '';
+  ingredients.forEach(row=>{
+    row.category = detectCategory(row.name) || 'Other / Custom';
+
     const card = document.createElement('div');
-    card.className = 'ing-card';
-    
-    let subFields = '';
-    if(row.unit === 'cup' || row.unit === 'tsp' || row.unit === 'tbsp'){
-      const isCustom = row.category === 'Other / Custom';
-      const defaultG = DENSITY[row.category] || '';
-      const cleanKey = row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "");
-      const fbWeight = window.globalIngredientDb && window.globalIngredientDb[cleanKey];
-      const placeholderText = fbWeight ? `FB: ${fbWeight}g` : (defaultG ? `${defaultG}g` : 'e.g. 150');
+    card.className='ing-card';
 
-      subFields = `
-        <div class="sub-row">
-          <label>Weight of 1 cup (g):</label>
-          <input type="number" class="gpc mini-num" data-id="${row.id}" value="${row.gpc}" placeholder="${placeholderText}">
-          ${isCustom ? `<span style="font-size:11px;color:var(--rose);">Please type grams per cup</span>` : ''}
-        </div>
-      `;
-    } else if(row.unit === 'egg'){
-      subFields = `
-        <div class="sub-row">
-          <div class="field eggsize">
-            <select class="row-eggsize" data-id="${row.id}">
-              ${Object.keys(EGG_PARTS).map(k=>`<option value="${k}" ${row.eggSize===k?'selected':''}>${k}</option>`).join('')}
-            </select>
-          </div>
-        </div>
-      `;
+    const fields = document.createElement('div');
+    fields.className='ing-fields';
+
+    const nameField = document.createElement('div'); nameField.className='field name';
+    nameField.innerHTML = '<label>Ingredient</label>';
+    const nameInput = document.createElement('input');
+    nameInput.type='text'; nameInput.placeholder='e.g. all-purpose flour';
+    nameInput.value=row.name;
+    nameField.appendChild(nameInput);
+    const hintEl = document.createElement('div');
+    hintEl.style.fontSize='11px'; hintEl.style.color='var(--ink-soft)'; hintEl.style.marginTop='2px';
+    nameField.appendChild(hintEl);
+
+    const amtField = document.createElement('div'); amtField.className='field amount';
+    amtField.innerHTML = '<label>Amount</label>';
+    const amtInput = document.createElement('input');
+    amtInput.type='text'; amtInput.inputMode='decimal';
+    amtInput.value=row.amount; amtInput.placeholder='e.g. 3/4';
+    amtInput.oninput=e=>{ row.amount=e.target.value; renderResults(); };
+    amtField.appendChild(amtInput);
+
+    const unitField = document.createElement('div'); unitField.className='field unit';
+    unitField.innerHTML = '<label>Unit</label>';
+    const baseUnitSelect = document.createElement('select');
+    unitOptionsFor(row.category).forEach(u=>{
+      const opt=document.createElement('option'); opt.value=u;
+      opt.textContent = u==='egg' ? 'egg' : u;
+      if(u===row.unit) opt.selected=true;
+      baseUnitSelect.appendChild(opt);
+    });
+    baseUnitSelect.onchange=e=>{ row.unit=e.target.value; renderRows(); renderResults(); };
+    unitField.appendChild(baseUnitSelect);
+
+    fields.appendChild(nameField);
+    fields.appendChild(amtField);
+    fields.appendChild(unitField);
+
+    if(row.unit==='egg'){
+      const eggField = document.createElement('div'); eggField.className='field eggsize';
+      eggField.innerHTML = '<label>Egg size</label>';
+      const eggSizeSelect = document.createElement('select');
+      Object.keys(EGG_G).forEach(k=>{
+        const opt=document.createElement('option'); opt.value=k; opt.textContent=k;
+        if(k===row.eggSize) opt.selected=true;
+        eggSizeSelect.appendChild(opt);
+      });
+      eggSizeSelect.onchange=e=>{ row.eggSize=e.target.value; updateDynamic(); };
+      eggField.appendChild(eggSizeSelect);
+      fields.appendChild(eggField);
     }
 
-    let sugarSection = '';
-    if(isSugarRow(row)){
-      sugarSection = `
-        <div style="margin-top:10px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-          <span class="sugar-tag">Sugar reduction</span>
-          ${SUGAR_REDUCTION_PRESETS.map(p => `
-            <button class="mini-pill ${row.SR===p?'active':''}" onclick="setRowSR('${row.id}', ${p})">-${p}%</button>
-          `).join('')}
-          <div style="display:inline-flex; align-items:center; gap:4px; margin-left:4px; font-family:var(--sans); font-size:12px;">
-            <input type="number" class="mini-num row-custom-sr" data-id="${row.id}" value="${SUGAR_REDUCTION_PRESETS.includes(row.SR)?'':row.SR}" placeholder="Custom" style="width:50px;"> %
-          </div>
-        </div>
-      `;
-    }
+    const delField = document.createElement('div'); delField.className='field delete';
+    const delBtn = document.createElement('button');
+    delBtn.className='del-btn'; delBtn.innerHTML='✕'; delBtn.title='Remove this ingredient';
+    delBtn.onclick=()=>removeRow(row.id);
+    delField.appendChild(delBtn);
+    fields.appendChild(delField);
 
-    card.innerHTML = `
-      <div class="ing-fields">
-        <div class="field name">
-          <label>Ingredient Name</label>
-          <input type="text" class="row-name" data-id="${row.id}" value="${row.name}" placeholder="e.g. Bread flour, Raisins">
-        </div>
-        <div class="field category">
-          <label>Density Category</label>
-          <select class="row-category" data-id="${row.id}">
-            ${Object.keys(DENSITY).map(k=>`<option value="${k}" ${row.category===k?'selected':''}>${k}</option>`).join('')}
-          </select>
-        </div>
-        <div class="field amount">
-          <label>Amount</label>
-          <input type="text" class="row-amount" data-id="${row.id}" value="${row.amount}" placeholder="e.g. 1 1/2, 250">
-        </div>
-        <div class="field unit">
-          <label>Unit</label>
-          <select class="row-unit" data-id="${row.id}">
-            ${['g','kg','oz','cup','tsp','tbsp','egg'].map(u=>`<option value="${u}" ${row.unit===u?'selected':''}>${u}</option>`).join('')}
-          </select>
-        </div>
-        <div class="field delete">
-          <button class="del-btn" onclick="removeRow('${row.id}')">✕</button>
-        </div>
-      </div>
-      ${subFields}
-      ${sugarSection}
-    `;
-    container.appendChild(card);
-  });
-}
+    card.appendChild(fields);
 
-window.setRowSR = function(id, val){
-  const r = window.ingredients.find(x=>x.id===id);
-  if(r){
-    r.SR = val;
-    renderRows();
-    recalc();
-  }
-};
+    const gpcSubRow = document.createElement('div');
+    gpcSubRow.className='sub-row';
+    gpcSubRow.innerHTML = `No match found — grams per 1 cup of this ingredient: `;
+    const gInput = document.createElement('input');
+    gInput.type='number'; gInput.step='any'; gInput.className='gpc'; gInput.value=row.customGpc;
+    gInput.placeholder='e.g. 200';
+    gInput.oninput=e=>{ row.customGpc=e.target.value; renderResults(); };
+    gpcSubRow.appendChild(gInput);
+    card.appendChild(gpcSubRow);
 
-window.removeRow = function(id){
-  window.ingredients = window.ingredients.filter(x=>x.id!==id);
-  checkedResults.delete(id);
-  renderRows();
-  recalc();
-};
+    const sugarSubRow = document.createElement('div');
+    sugarSubRow.className='sub-row';
+    const label = document.createElement('span');
+    label.innerHTML = 'Extra sugar reduction <span class="sugar-tag">sugar only</span>:';
+    sugarSubRow.appendChild(label);
+    SUGAR_REDUCTION_PRESETS.forEach(p=>{
+      const btn=document.createElement('button');
+      btn.type='button'; btn.className='mini-pill'+(parseFloat(row.sugarReduction)===p?' active':'');
+      btn.textContent = p+'%';
+      btn.onclick=()=>{ row.sugarReduction=p; renderRows(); renderResults(); };
+      sugarSubRow.appendChild(btn);
+    });
+    const customLabel=document.createElement('span'); customLabel.textContent='Custom:';
+    sugarSubRow.appendChild(customLabel);
+    const customInput = document.createElement('input');
+    customInput.type='number'; customInput.min='0'; customInput.max='90'; customInput.step='any';
+    customInput.className='mini-num';
+    customInput.value = SUGAR_REDUCTION_PRESETS.includes(parseFloat(row.sugarReduction)) ? '' : row.sugarReduction;
+    customInput.placeholder='%';
+    customInput.oninput=e=>{
+      const v=parseFloat(e.target.value);
+      if(!isNaN(v)){ row.sugarReduction=v; renderRows(); renderResults(); }
+    };
+    sugarSubRow.appendChild(customInput);
+    card.appendChild(sugarSubRow);
 
-document.getElementById('addRowBtn').addEventListener('click',()=>addRow());
-
-document.getElementById('rows').addEventListener('input', e => {
-  const id = e.target.getAttribute('data-id');
-  if(!id) return;
-  const r = window.ingredients.find(x=>x.id===id);
-  if(!r) return;
-
-  if(e.target.classList.contains('row-name')){
-    r.name = e.target.value;
-    const cat = detectCategory(r.name);
-    if(cat) r.category = cat;
-    renderRows();
-  } else if(e.target.classList.contains('row-amount')){
-    r.amount = e.target.value;
-  } else if(e.target.classList.contains('gpc')){
-    r.gpc = e.target.value;
-  } else if(e.target.classList.contains('row-custom-sr')){
-    const val = parseFloat(e.target.value);
-    r.SR = isNaN(val) ? 0 : val;
-  }
-  recalc();
-});
-
-document.getElementById('rows').addEventListener('change', e => {
-  const id = e.target.getAttribute('data-id');
-  if(!id) return;
-  const r = window.ingredients.find(x=>x.id===id);
-  if(!r) return;
-
-  if(e.target.classList.contains('row-category')){
-    r.category = e.target.value;
-    renderRows();
-  } else if(e.target.classList.contains('row-unit')){
-    r.unit = e.target.value;
-    renderRows();
-  } else if(e.target.classList.contains('row-eggsize')){
-    r.eggSize = e.target.value;
-  }
-  recalc();
-});
-
-function getRowOrigGrams(row){
-  const amt = parseAmount(row.amount);
-  if(isNaN(amt) || amt<=0) return NaN;
-
-  if(WEIGHT_UNIT_G[row.unit]){
-    return amt * WEIGHT_UNIT_G[row.unit];
-  }
-
-  if(row.unit === 'egg'){
-    const base = EGG_G[row.eggSize] || 50;
-    const pt = detectEggPart(row.name);
-    const rules = EGG_PARTS[row.eggSize] || {whole:50, yolk:18, white:32};
-    if(pt==='yolk') return amt * rules.yolk;
-    if(pt==='white') return amt * rules.white;
-    return amt * base;
-  }
-
-  let cups = amt;
-  if(row.unit==='tsp') cups = amt/48;
-  if(row.unit==='tbsp') cups = amt/16;
-
-  const cleanKey = row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "");
-  const fbWeight = window.globalIngredientDb && window.globalIngredientDb[cleanKey];
-
-  if(row.gpc && !isNaN(parseFloat(row.gpc))){
-    return cups * parseFloat(row.gpc);
-  } else if (fbWeight) {
-    return cups * fbWeight;
-  } else {
-    const std = DENSITY[row.category];
-    if(std!=null) return cups * std;
-  }
-  return NaN;
-}
-
-window.recalc = function(){
-  const tbody = document.getElementById('resultsBody');
-  tbody.innerHTML = '';
-  
-  if(!window.ingredients || window.ingredients.length===0){
-    document.getElementById('emptyMsg').style.display = 'block';
-    document.getElementById('totalReadout').textContent = 'Target total = 0 g';
-    return;
-  }
-  document.getElementById('emptyMsg').style.display = 'none';
-
-  let totalOrigG = 0;
-  let allRowsValid = true;
-  const computedRows = [];
-
-  window.ingredients.forEach(row => {
-    const origG = getRowOrigGrams(row);
-    let finalOrigG = origG;
-    
-    if(!isNaN(origG) && isSugarRow(row) && row.SR > 0){
-      finalOrigG = origG * (1 - row.SR/100);
-    }
-
-    if(!isNaN(finalOrigG)){
-      totalOrigG += finalOrigG;
-    } else {
-      allRowsValid = false;
-    }
-
-    computedRows.push({ row, origG, finalOrigG });
-  });
-
-  lastTotalOrigGrams = totalOrigG;
-
-  let factor = scalePct/100;
-  if(scaleMode==='target' && totalTargetGrams!=null && totalOrigG>0 && allRowsValid){
-    factor = totalTargetGrams / totalOrigG;
-    scalePct = factor * 100;
-    document.getElementById('scaleReadout').innerHTML = Math.round(scalePct) + '<span> %</span>';
-    const cp = document.getElementById('customPct');
-    if(document.activeElement !== cp) cp.value = Math.round(scalePct);
-  } else if(scaleMode==='override' && overrideRowId!=null && allRowsValid){
-    const target = computedRows.find(x=>x.row.id===overrideRowId);
-    if(target && !isNaN(target.finalOrigG) && target.finalOrigG>0){
-      const overVal = rowOverrides[overrideRowId];
-      if(!isNaN(overVal) && overVal>0){
-        factor = overVal / target.finalOrigG;
-        scalePct = factor * 100;
-        document.getElementById('scaleReadout').innerHTML = Math.round(scalePct) + '<span> %</span>';
-        const cp = document.getElementById('customPct');
-        if(document.activeElement !== cp) cp.value = Math.round(scalePct);
+    function updateDynamic(){
+      row.category = detectCategory(row.name) || 'Other / Custom';
+      const isVolumeUnit = ['cup','tbsp','tsp','ml'].includes(row.unit);
+      if(row.unit==='egg'){
+        const part = detectEggPart(row.name);
+        const partLabel = part==='yolk' ? 'yolk only' : part==='white' ? 'white only' : 'whole egg';
+        const g = EGG_PARTS[row.eggSize][part];
+        hintEl.textContent = `Detected: ${partLabel} — ${g} g each (${row.eggSize.split(' (')[0]})`;
+      } else if(isVolumeUnit && row.category==='Other / Custom'){
+        hintEl.textContent = row.name.trim() ? "No match — enter grams per cup below." : '';
+      } else if(isVolumeUnit){
+        if(row.unit==='ml') {
+          const d=LIQUID_DENSITY[row.category];
+          hintEl.textContent = `Detected: ${row.category} (Density: ${d} g/ml)`;
+        } else {
+          hintEl.textContent = `Detected: ${row.category} (${DENSITY[row.category]} g/cup)`;
+        }
+      } else {
+        hintEl.textContent = '';
       }
+      gpcSubRow.style.display = (['cup','tbsp','tsp'].includes(row.unit) && row.category==='Other / Custom') ? 'flex' : 'none';
+      sugarSubRow.style.display = isSugarRow(row) ? 'flex' : 'none';
+      renderResults();
     }
-  }
+    nameInput.oninput = e=>{ row.name=e.target.value; updateDynamic(); };
+    updateDynamic();
 
-  let totalScaledG = 0;
-
-  computedRows.forEach(({row, origG, finalOrigG}) => {
-    const tr = document.createElement('tr');
-    if(checkedResults.has(row.id)) tr.className = 'checked-row';
-
-    const cleanKey = row.name.toLowerCase().trim().replace(/[\.#\$\[\]]/g, "");
-    const hasFbRecord = window.globalIngredientDb && window.globalIngredientDb[cleanKey];
-
-    const isCupUnit = ['cup','tsp','tbsp'].includes(row.unit);
-    const missingWeightData = isCupUnit && !row.gpc && !hasFbRecord && row.category === 'Other / Custom';
-
-    let nameCellHtml = row.name || '(Unnamed)';
-    if(isSugarRow(row) && row.SR > 0){
-      nameCellHtml += ` <span style="font-size:11px; color:var(--rose); font-weight:normal;">(-${row.SR}% sugar)</span>`;
-    }
-
-    if (isCupUnit && row.gpc && !isNaN(parseFloat(row.gpc)) && !hasFbRecord && row.name) {
-      nameCellHtml += ` <button type="button" class="quick-save-btn no-print" onclick="window.saveIngredientToDb('${row.name}', ${row.gpc})">💾 Save</button>`;
-    }
-
-    if(isNaN(finalOrigG)){
-      tr.innerHTML = `
-        <td class="check-col"></td>
-        <td class="name-cell">${nameCellHtml}</td>
-        <td class="orig num">-</td>
-        <td class="result num" style="color:var(--rose); font-size:12px;">กรุณาระบุน้ำหนักกรัม</td>
-      `;
-      tbody.appendChild(tr);
-      return;
-    }
-
-    const scaledG = finalOrigG * factor;
-    totalScaledG += scaledG;
-
-    let origDisplay = round1(finalOrigG)+' g';
-    if(isSugarRow(row) && row.SR>0){
-      origDisplay = `<span style="text-decoration:line-through; font-size:11px; opacity:0.6;">${round1(origG)}g</span> ${round1(finalOrigG)}g`;
-    }
-
-    tr.innerHTML = `
-      <td class="check-col"><input type="checkbox" class="ing-check no-print" data-id="${row.id}" ${checkedResults.has(row.id)?'checked':''}></td>
-      <td class="name-cell">${nameCellHtml}</td>
-      <td class="orig num">${origDisplay}</td>
-      <td class="result num">
-        <input type="number" class="target-input" data-id="${row.id}" step="any" value="${round1(scaledG)}"> g
-      </td>
-    `;
-    tbody.appendChild(tr);
-
-    if(missingWeightData) {
-      const warnTr = document.createElement('tr');
-      warnTr.className = 'warn-row';
-      warnTr.innerHTML = `<td colspan="4">⚠ ระบบต้องการ "Weight of 1 cup" ด้านบนเพื่อทำการแปลงหน่วยอัตโนมัติค่ะ</td>`;
-      tbody.appendChild(warnTr);
-    }
+    box.appendChild(card);
   });
-
-  if(allRowsValid && totalOrigG>0){
-    const totalTr = document.createElement('tr');
-    totalTr.className = 'total-row';
-    totalTr.innerHTML = `
-      <td class="check-col"></td>
-      <td><strong>Total Weight</strong></td>
-      <td class="num">${round1(totalOrigG)} g</td>
-      <td class="num" style="color:var(--accent-deep); font-size:16px;"><strong>${round1(totalScaledG)} g</strong></td>
-    `;
-    tbody.appendChild(totalTr);
-
-    const pc = parseInt(document.getElementById('pieceCount').value,10)||1;
-    const pw = totalScaledG / pc;
-    document.getElementById('totalReadout').textContent = `Yield: ${pc} ชิ้น @ ชิ้นละ ${round1(pw)} กรัม`;
-  } else {
-    document.getElementById('totalReadout').textContent = 'Target total = -';
-  }
-};
-
-document.getElementById('resultsBody').addEventListener('change', e => {
-  if(e.target.classList.contains('ing-check')){
-    const id = e.target.getAttribute('data-id');
-    if(e.target.checked) checkedResults.add(id);
-    else checkedResults.delete(id);
-    recalc();
-    return;
-  }
-  if(e.target.classList.contains('target-input')){
-    const id = e.target.getAttribute('data-id');
-    const val = parseFloat(e.target.value);
-    if(!isNaN(val) && val>0){
-      scaleMode = 'override';
-      overrideRowId = id;
-      rowOverrides[id] = val;
-      totalTargetGrams = null;
-    } else {
-      scaleMode = 'pct';
-      overrideRowId = null;
-    }
-    recalc();
-  }
-});
-
-const PRESETS = [25,33.3,50,66.7,75,100,150,200,300];
-function renderPills(){
-  const p = document.getElementById('pills');
-  p.innerHTML = PRESETS.map(v => `
-    <button class="pill ${scaleMode==='pct'&&scalePct===v?'active':''}" onclick="setPill(${v})">${v}%</button>
-  `).join('');
 }
 
-window.setPill = function(v){
-  scaleMode = 'pct';
-  scalePct = v;
-  overrideRowId = null;
-  totalTargetGrams = null;
-  document.getElementById('customPct').value = '';
-  document.getElementById('scaleReadout').innerHTML = v + '<span> %</span>';
-  renderPills();
-  recalc();
-};
+function renderPills(){
+  const presets = [100,90,85,75,50,33,25];
+  const box = document.getElementById('pills');
+  box.innerHTML='';
+  presets.forEach(p=>{
+    const btn=document.createElement('button');
+    btn.className='pill'+(scaleMode==='pct' && scalePct===p ? ' active':'');
+    btn.textContent = p+'%';
+    btn.onclick=()=>{
+      scalePct=p; scaleMode='pct'; overrideRowId=null;
+      document.getElementById('customPct').value='';
+      renderPills(); renderResults();
+    };
+    box.appendChild(btn);
+  });
+}
 
-document.getElementById('customPct').addEventListener('input', e => {
+document.getElementById('customPct').addEventListener('input', e=>{
   const v = parseFloat(e.target.value);
   if(!isNaN(v) && v>0){
-    scaleMode = 'pct';
-    scalePct = v;
-    overrideRowId = null;
-    totalTargetGrams = null;
-    document.getElementById('scaleReadout').innerHTML = Math.round(v) + '<span> %</span>';
-    renderPills();
-    recalc();
+    scalePct=v; scaleMode='pct'; overrideRowId=null;
+    renderPills(); renderResults();
   }
 });
 
-document.getElementById('applyWeightBtn').addEventListener('click', () => {
-  const pc = parseInt(document.getElementById('pieceCount').value,10)||0;
+function updateTotalReadout(){
+  const pc = parseFloat(document.getElementById('pieceCount').value)||0;
   const pw = parseFloat(document.getElementById('pieceWeight').value)||0;
-  if(pc>0 && pw>0){
-    scaleMode = 'target';
-    totalTargetGrams = pc * pw;
-    overrideRowId = null;
-    renderPills();
-    recalc();
-  }
-});
+  document.getElementById('totalReadout').textContent = `Target total = ${round1(pc*pw)} g`;
+  autoResizeAllTextareas();
+}
+document.getElementById('pieceCount').addEventListener('input', updateTotalReadout);
+document.getElementById('pieceWeight').addEventListener('input', updateTotalReadout);
 
-document.getElementById('clearBtn').addEventListener('click', () => {
-  if(confirm('คุณต้องการล้างข้อมูลสูตรปัจจุบันใช่หรือไม่?')){
-    window.ingredients = [];
-    rowOverrides = {};
-    overrideRowId = null;
-    totalTargetGrams = null;
-    scalePct = 100;
-    scaleMode = 'pct';
-    editingKey = null;
-    checkedResults.clear();
-    document.getElementById('recipeUrl').value = '';
-    document.getElementById('recipeUrlView').style.display = 'none';
-    document.getElementById('recipeUrl').style.display = 'block';
-    document.getElementById('pasteBox').value = '';
-    document.getElementById('notesBox').value = '';
-    document.getElementById('recipeNameInput').value = '';
-    document.getElementById('recipeCategory').value = '';
-    document.getElementById('customPct').value = '';
-    document.getElementById('scaleReadout').innerHTML = '100<span> %</span>';
-    document.getElementById('saveChangesBtn').style.display = 'none';
-    document.getElementById('saveBtn').style.display = 'block';
-    renderPills();
-    renderRows();
-    recalc();
-  }
-});
+document.getElementById('applyWeightBtn').addEventListener('click', GrandmaScale);
+function GrandmaScale(){
+  const pc = parseFloat(document.getElementById('pieceCount').value);
+  const pw = parseFloat(document.getElementById('pieceWeight').value);
+  if(isNaN(pc) || isNaN(pw) || pc<=0 || pw<=0) return;
+  totalTargetGrams = pc*pw;
+  scaleMode='total';
+  overrideRowId=null;
+  renderResults();
+}
 
-document.getElementById('extractBtn').addEventListener('click', () => {
-  const txt = document.getElementById('pasteBox').value.trim();
-  const status = document.getElementById('extractStatus');
-  if(!txt){
-    status.className = 'status-msg err';
-    status.textContent = 'กรุณาวางข้อความสูตรก่อนกดแยกข้อมูลค่ะ';
+function renderResults(){
+  const body = document.getElementById('resultsBody');
+  body.innerHTML='';
+  const emptyMsg = document.getElementById('emptyMsg');
+
+  const namedRows = ingredients.filter(r=>r.name.trim()!=='');
+  const rowsData = namedRows.map(r=>({row:r, orig: originalGrams(r)}));
+  const validRows = rowsData.filter(d=>d.orig!=null);
+  const incompleteRows = rowsData.filter(d=>d.orig==null);
+
+  if(namedRows.length===0){
+    emptyMsg.style.display='block';
+    document.getElementById('scaleReadout').innerHTML = Math.round(scalePct)+'<span> %</span>';
     return;
   }
-  
-  window.ingredients = [];
-  rowOverrides = {};
-  overrideRowId = null;
-  totalTargetGrams = null;
-  checkedResults.clear();
+  emptyMsg.style.display='none';
 
-  const lines = txt.split('\n');
-  let methodLines = [];
-  let foundOvenTemp = null;
+  const withEff = validRows.map(d=>({...d, eff: effectiveOrig(d.row, d.orig)}));
 
-  const unitMap = {
-    'g':'g','gram':'g','grams':'g','กิโลกรัม':'kg','kg':'kg',
-    'oz':'oz','ounce':'oz','ounces':'oz','cup':'cup','cups':'cup',
-    'ถ้วย':'cup','ถ้วยตวง':'cup','tsp':'tsp','teaspoon':'tsp',
-    'teaspoons':'tsp','ช้อนชา':'tsp','tbsp':'tbsp','tablespoon':'tbsp',
-    'tablespoons':'tbsp','ช้อนโต๊ะ':'tbsp','egg':'egg','eggs':'egg','ฟอง':'egg'
+  let factor;
+  if(scaleMode==='row' && overrideRowId){
+    const target = rowOverrides[overrideRowId];
+    const baseRow = withEff.find(d=>d.row.id===overrideRowId);
+    if(baseRow && target!=null && !isNaN(target) && baseRow.eff>0){
+      factor = target / baseRow.eff;
+    } else { factor = scalePct/100; }
+  } else if(scaleMode==='total' && totalTargetGrams!=null){
+    const sumEff = withEff.reduce((s,d)=>s+d.eff,0);
+    factor = sumEff>0 ? totalTargetGrams/sumEff : 1;
+  } else {
+    factor = scalePct/100;
+  }
+  scalePct = factor*100;
+
+  document.getElementById('scaleReadout').innerHTML =
+    (Math.abs(scalePct-Math.round(scalePct))<0.05 ? Math.round(scalePct) : scalePct.toFixed(1)) + '<span> % of original</span>';
+
+  let totalOrig=0, totalScaled=0;
+
+  withEff.forEach(({row, orig, eff}) => {
+    const scaled = eff*factor;
+    totalOrig += orig;
+    totalScaled += scaled;
+
+    const tr = document.createElement('tr');
+    if (checkedResults.has(row.id)) tr.classList.add('checked-row');
+
+    const tdCheck = document.createElement('td');
+    tdCheck.className = 'check-col';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'ing-check';
+    checkbox.checked = checkedResults.has(row.id);
+    checkbox.onchange = () => {
+      if (checkbox.checked) checkedResults.add(row.id); else checkedResults.delete(row.id);
+      tr.classList.toggle('checked-row', checkbox.checked);
+    };
+    tdCheck.appendChild(checkbox);
+
+    const tdName = document.createElement('td');
+    tdName.className = 'name-cell';
+    tdName.textContent = row.name + (isSugarRow(row) && parseFloat(row.sugarReduction)>0 ? ` (−${row.sugarReduction}% sugar)` : '');
+
+    const tdOrig = document.createElement('td');
+    tdOrig.className='num orig';
+    tdOrig.textContent = orig.toFixed(1)+' g';
+
+    const tdResult = document.createElement('td');
+    tdResult.className='num result';
+    const input = document.createElement('input');
+    input.type='number'; input.step='any'; input.className='target-input';
+    input.value = round1(scaled);
+    input.oninput=(e)=>{
+      overrideRowId = row.id;
+      scaleMode='row';
+      rowOverrides[row.id] = parseFloat(e.target.value);
+      renderResults();
+    };
+    tdResult.appendChild(input);
+    const gLabel = document.createElement('span');
+    gLabel.style.marginLeft='4px'; gLabel.style.fontFamily='var(--sans)'; gLabel.style.fontSize='12px'; gLabel.style.color='var(--ink-soft)';
+    gLabel.textContent='g';
+    tdResult.appendChild(gLabel);
+
+    tr.appendChild(tdCheck); tr.appendChild(tdName); tr.appendChild(tdOrig); tr.appendChild(tdResult);
+    body.appendChild(tr);
+  });
+
+  incompleteRows.forEach(({row})=>{
+    const tr = document.createElement('tr');
+    tr.className='warn-row';
+    const td = document.createElement('td');
+    td.colSpan = 4;
+    td.textContent = `⚠ "${row.name}" is missing conversion info.`;
+    tr.appendChild(td);
+    body.appendChild(tr);
+  });
+
+  const totalTr = document.createElement('tr');
+  totalTr.className='total-row';
+  totalTr.innerHTML = `<td></td><td>Total</td><td class="num">${totalOrig.toFixed(1)} g</td><td class="num">${totalScaled.toFixed(1)} g</td>`;
+  body.appendChild(totalTr);
+
+  lastTotalOrigGrams = totalOrig;
+  renderPills();
+}
+
+document.getElementById('extractBtn').addEventListener('click', function(){
+  const rawText = document.getElementById('pasteBox').value.trim();
+  const statusEl = document.getElementById('extractStatus');
+  if(!rawText){ statusEl.textContent='กรุณาวางสูตรก่อนกดปุ่มค่ะ'; statusEl.className='status-msg err'; return; }
+
+  statusEl.textContent='กำลังแกะสูตร...';
+
+  const parseUnicodeFraction = (str) => {
+    // ใส่รหัสแปลความหมายสัญลักษณ์เศษส่วนครบทุกตัวที่มีในระบบสากล (Unicode) ล่วงหน้าทั้งหมด
+    const fractions = {
+      '½': '1/2', '⅓': '1/3', '¼': '1/4', '¾': '3/4', 
+      '⅕': '1/5', '⅖': '2/5', '⅗': '3/5', '⅘': '4/5', 
+      '⅙': '1/6', '⅚': '5/6', 
+      '⅛': '1/8', '⅜': '3/8', '⅝': '5/8', '⅞': '7/8',
+      '⅐': '1/7', '⅑': '1/9', '⅟': '1/',  '⅒': '1/10'
+    };
+    
+    // 1. ดักจับกรณีมีคำเชื่อมคั่นกลาง เช่น "1 + ⅚", "1 and ⅚", "1 plus ⅚" หรือพิมพ์ติดกันแบบ "1+⅚"
+    // ขยายตัวจับข้อความให้ดักอักษรเศษส่วนทุกตัว [½⅓¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞⅐⅑⅟⅒]
+    str = str.replace(/(\d+)[ \t]*(?:\s+and\s+|\s+plus\s+|\s+และ\s+|\+)[ \t]*([½⅓¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞⅐⅑⅟⅒])/gi, (m, whole, sym) => {
+      return whole + ' ' + fractions[sym];
+    });
+
+    // 2. ดักจับกรณีปกติ เช่น "⅚" หรือพิมพ์เว้นวรรคธรรมดา "1 ⅚"
+    return str.replace(/(\d)?[ \t]*([½⅓¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞⅐⅑⅟⅒])/g, (m, wholeDigit, sym) => {
+      const frac = fractions[sym];
+      return wholeDigit ? (wholeDigit + ' ' + frac) : frac;
+    });
   };
 
-  lines.forEach(line => {
-    const l = line.trim();
-    if(!l) return;
+  let text = parseUnicodeFraction(rawText);
+  
+  // 3. จัดการรวมกรณีที่เป็นเศษส่วนพิมพ์ธรรมดาที่หลงเหลืออยู่ (เช่น 1 + 5/6 หรือ 1 and 5/6)
+  text = text.replace(/(\d+)[ \t]*(?:\s+and\s+|\s+plus\s+|\s+และ\s+|\+)[ \t]*(\d+\/\d+)/gi, '$1 $2');
+  
+  // ล้างวงเล็บน้ำหนักกรัมซ้ำซ้อน
+  text = text.replace(/(\([^)]*\)|grams?|g\b)/gi,'$1');
 
-    const tempM = l.match(/(\d+)\s*°?\s*[cC]\b/) || l.match(/(\d+)\s*องศา/);
-    if(tempM && !foundOvenTemp){
-      foundOvenTemp = tempM[1];
+  let normalizedText = text
+    // ★ แก้ไข: เดิมรองรับแค่ "...plus 1 yolk" แต่ถ้าต้นฉบับเขียนว่า "...plus 1 egg yolk"
+    // (มีคำว่า egg แทรกอยู่ก่อน yolk/white ด้วย) regex เดิมจะไม่ match เลย ทำให้ไม่ถูกแยกบรรทัด
+    // เพิ่ม (?:egg\s*)? ให้เป็นตัวเลือก เพื่อรองรับทั้งสองแบบ
+    .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*eggs?\s*(?:\+|\band\b|\bplus\b|\bและ\b)\s*(\d+)\s*(?:egg\s*)?yolks?/gi,
+      (m,a,size,b)=>`${a} ${size||'large'} egg\n${b} ${size||'large'} egg yolk`)
+    .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*eggs?\s*(?:\+|\band\b|\bplus\b|\bและ\b)\s*(\d+)\s*(?:egg\s*)?whites?/gi,
+      (m,a,size,b)=>`${a} ${size||'large'} egg\n${b} ${size||'large'} egg white`)
+    .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*egg\s*(?:\+|\band\b|\bplus\b|\bและ\b)\s*(\d+)\s*(?:egg\s*)?yolks?/gi,
+      (m,a,size,b)=>`${a} ${size||'large'} egg\n${b} ${size||'large'} egg yolk`)
+    .replace(/(\d+)\s+(small|medium|large|extra\s*large|xl)?\s*egg\s*(?:\+|\band\b|\bplus\b|\bและ\b)\s*(\d+)\s*(?:egg\s*)?whites?/gi,
+      (m,a,size,b)=>`${a} ${size||'large'} egg\n${b} ${size||'large'} egg white`);
+
+  const lines = normalizedText.split('\n');
+  
+  let loadedCount = 0;
+  let newIngredients = [];
+
+  lines.forEach(line => {
+    let cleanLine = line.trim().replace(/^[\u25A0-\u25FF\*\-\+\s•▢]+/g, '').trim();
+    if(!cleanLine) return;
+
+    // Compound Regex รองรับเครื่องหมาย + หรือคำเชื่อมได้ครบถ้วน
+    const compoundRegex = /^([\d\/\.\s]+)\s*(cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา)\s*(?:plus|\+|and|และ)\s*([\d\/\.\s]+)\s*(cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา)\s*(.*)$/i;
+    const compoundMatch = cleanLine.match(compoundRegex);
+    
+    if (compoundMatch) {
+      const amt1 = parseAmount(compoundMatch[1]);
+      const u1 = compoundMatch[2].toLowerCase();
+      const amt2 = parseAmount(compoundMatch[3]);
+      const u2 = compoundMatch[4].toLowerCase();
+      const ingredientName = compoundMatch[5].trim();
+      
+      if (!isNaN(amt1) && !isNaN(amt2)) {
+        const getUnitKey = (u) => {
+          if (u.includes('cup') || u.includes('ถ้วย')) return 'cup';
+          if (u.includes('tbsp') || u.includes('tablespoon') || u.includes('ช้อนโต๊ะ')) return 'tbsp';
+          if (u.includes('tsp') || u.includes('teaspoon') || u.includes('ช้อนชา')) return 'tsp';
+          return null;
+        };
+        
+        const k1 = getUnitKey(u1);
+        const k2 = getUnitKey(u2);
+        
+        if (k1 && k2) {
+          let totalAmt = 0;
+          let finalUnit = k2;
+          
+          if (k1 === 'cup' && k2 === 'tbsp') {
+            totalAmt = (amt1 * 16) + amt2;
+            finalUnit = 'tbsp';
+          } else if (k1 === 'tbsp' && k2 === 'tsp') {
+            totalAmt = (amt1 * 3) + amt2;
+            finalUnit = 'tsp';
+          } else if (k1 === 'cup' && k2 === 'tsp') {
+            totalAmt = (amt1 * 48) + amt2;
+            finalUnit = 'tsp';
+          } else {
+            totalAmt = amt1 + amt2;
+          }
+          cleanLine = `${totalAmt} ${finalUnit} ${ingredientName}`;
+        }
+      }
     }
 
-    const regex = /^([\d\s\/\.-]+)\s*(grams|gram|g|kg|oz|ounces|ounce|cups|cup|ถ้วยตวง|ถ้วย|tsp|teaspoons|teaspoon|ช้อนชา|tbsp|tablespoons|tablespoon|ช้อนโต๊ะ|eggs|egg|ฟอง)?\.?\s+(.*)$/i;
-    const m = l.match(regex);
-    if(m){
-      const amtStr = m[1].trim();
-      const unitStr = (m[2]||'').toLowerCase();
-      const nameStr = m[3].trim();
-      const mappedUnit = unitMap[unitStr] || 'g';
-      const cat = detectCategory(nameStr) || 'Other / Custom';
+    const regex = /^([\d\/\.\s]+)\s*(grams?|g|กรัม|oz|ounces?|ounce|ml|milliliters?|cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา|eggs?|egg|ฟอง)?\s*(.*)$/i;
+    const noParenLine = cleanLine.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
 
-      window.ingredients.push({
-        id: uid(), name: nameStr, category: cat, amount: amtStr,
-        unit: mappedUnit, eggSize: 'Large (L, ~50g)', gpc:'', SR:0
-      });
+    let gramValue = null;
+    const parenGroups = [...cleanLine.matchAll(/\(([^)]*)\)/g)];
+    for (const pg of parenGroups) {
+        const gm = pg[1].match(/(\d+(?:\.\d+)?)\s*(?:g|grams?|กรัม)\b/i);
+        if (gm) { gramValue = gm[1]; break; }
+    }
+
+    let amt = null, unit = 'g', name = cleanLine;
+
+    let mainAmt = null, mainUnit = null, mainName = null;
+    const mainMatch = noParenLine.match(regex);
+    if (mainMatch && mainMatch[2]) {
+        const checkAmt = parseAmount(mainMatch[1]);
+        if (!isNaN(checkAmt)) {
+            mainAmt = mainMatch[1].trim();
+            mainUnit = mainMatch[2].toLowerCase();
+            mainName = mainMatch[3] ? mainMatch[3].trim() : '';
+        }
+    }
+
+    if (gramValue !== null) {
+        amt = gramValue.trim();
+        unit = 'g';
+        name = mainName !== null ? mainName : cleanLine.replace(/\([^)]*\)/g, '').trim();
+    } else if (mainAmt !== null) {
+        amt = mainAmt;
+        unit = mainUnit;
+        name = mainName;
     } else {
-      if(/[a-zA-Z\u0400-\u04FF\u0E00-\u0E7F]/.test(l)){
-        methodLines.push(l);
-      }
+        const match = cleanLine.match(regex);
+        if (match) {
+            amt = match[1].trim();
+            unit = match[2] ? match[2].toLowerCase() : 'g';
+            name = match[3] ? match[3].trim() : (match[2] ? '' : match[1]);
+        } else if (cleanLine) {
+            // ★ เพิ่มใหม่: เดิมถ้าบรรทัดไม่มีตัวเลขนำหน้าเลย (เช่น "egg yolk" เดี่ยวๆ ไม่มีเลข)
+            // regex ด้านบนจะไม่ match เลยตั้งแต่ต้น ทำให้รายการนี้หายไปทั้งบรรทัดแบบเงียบๆ
+            // ตอนนี้ถ้าไม่มีตัวเลขนำหน้าจริงๆ ให้ default จำนวนเป็น 1 แทนการทิ้งไปเฉยๆ
+            amt = '1';
+            unit = 'g';
+            name = cleanLine;
+        }
+    }
+
+    if (amt !== null && !isNaN(parseAmount(amt))) {
+        let finalUnit = 'g';
+        if (unit.includes('cup') || unit.includes('ถ้วย')) finalUnit = 'cup';
+        else if (unit.includes('tbsp') || unit.includes('tablespoon') || unit.includes('ช้อนโต๊ะ')) finalUnit = 'tbsp';
+        else if (unit.includes('tsp') || unit.includes('teaspoon') || unit.includes('ช้อนชา')) finalUnit = 'tsp';
+        else if (unit.includes('ml') || unit.includes('milliliter')) finalUnit = 'ml';
+        else if (unit.includes('egg') || unit.includes('ฟอง')) finalUnit = 'egg';
+        else if (unit.includes('oz') || unit.includes('ounce')) finalUnit = 'oz';
+        else finalUnit = 'g';
+
+        const eggText=(name||'').toLowerCase();
+
+        if(/\begg/.test(eggText)){
+            finalUnit='egg';
+
+            name=name.replace(/,?\s*at room temperature/ig,'')
+                     .replace(/,?\s*room temperature/ig,'')
+                     .replace(/,?\s*beaten/ig,'')
+                     .trim();
+
+            if(/(?:egg\s*)?yolks?/.test(eggText)){
+                name='Egg yolk';
+            }else if(/(?:egg\s*)?whites?/.test(eggText)){
+                name='Egg white';
+            }else{
+                name='Egg';
+            }
+        }
+        const eggSizeText=(eggText||'');
+        const detectedEggSize=
+            /extra[ -]?large|\bxl\b/i.test(eggSizeText)?'Extra-large (XL, ~56g)':
+            /medium/i.test(eggSizeText)?'Medium (M, ~44g)':
+            /small/i.test(eggSizeText)?'Small (S, ~38g)':
+            'Large (L, ~50g)';
+
+        newIngredients.push({
+            id: uid(), name: name, category: detectCategory(name) || 'Other / Custom',
+            amount: amt, unit: finalUnit, customGpc: '', eggSize: detectedEggSize, sugarReduction: 0
+        });
+        loadedCount++;
     }
   });
 
-  if(window.ingredients.length > 0){
-    status.className = 'status-msg ok';
-    status.textContent = `สกัดสำเร็จเรียบร้อยเจอ ${window.ingredients.length} วัตถุดิบค่ะ!`;
-  } else {
-    status.className = 'status-msg err';
-    status.textContent = 'ไม่พบรูปแบบวัตถุดิบในข้อความ ระบบจะทำการสแกนข้อความแบบละเอียดแทนค่ะ';
-    lines.forEach(line => {
-      const l = line.trim();
-      if(!l) return;
-      const m2 = l.match(/^([\d\s\/\.-]+)\s+(.*)$/);
-      if(m2){
-        const amt = m2[1].trim();
-        const rest = m2[2].trim();
-        if(isNaN(parseAmount(amt))) return;
-        const cat = detectCategory(rest) || 'Other / Custom';
-        window.ingredients.push({
-          id: uid(), name: rest, category: cat, amount: amt,
-          unit: 'g', eggSize: 'Large (L, ~50g)', gpc:'', SR:0
-        });
+  // ★ เพิ่มใหม่: ถ้าดึงมาได้ "chocolate" มากกว่า 1 แถว (เช่น chocolate bar + chocolate morsels)
+  // ให้รวมเป็นแถวเดียว ชื่อ "Chocolate" เพราะเวลาทำขนมจริงใช้ช็อกโกแลตตัวเดียว ไม่ได้ซื้อแยกตามสูตร
+  const chocIdx = [];
+  newIngredients.forEach((ing, i) => { if(/\bchocolate\b/i.test(ing.name)) chocIdx.push(i); });
+  if(chocIdx.length > 1){
+    const units = new Set(chocIdx.map(i => newIngredients[i].unit));
+    let mergedRow = null;
+
+    if(units.size === 1){
+      // หน่วยเดียวกันหมด (เช่น "4 oz" + "4 oz") -> บวกตัวเลขตรงๆ แล้วคงหน่วยเดิมไว้ ไม่แปลงเป็นกรัม
+      let totalAmt = 0; let allValid = true;
+      chocIdx.forEach(i => {
+        const a = parseAmount(newIngredients[i].amount);
+        if(isNaN(a)){ allValid = false; return; }
+        totalAmt += a;
+      });
+      if(allValid){
+        mergedRow = {
+          id: uid(), name: 'Chocolate', category: 'Chocolate',
+          amount: round1(totalAmt), unit: newIngredients[chocIdx[0]].unit,
+          customGpc: '', eggSize: 'Large (L, ~50g)', sugarReduction: 0
+        };
       }
-    });
-    if(window.ingredients.length > 0){
-      status.className = 'status-msg ok';
-      status.textContent = `สแกนแบบละเอียดดึงข้อมูลสำเร็จ ${window.ingredients.length} รายการค่ะ!`;
+    } else {
+      // หน่วยไม่ตรงกัน (เช่น "4 oz" + "50 g") -> แปลงทุกอันเป็นกรัมก่อนแล้วรวม
+      let totalG = 0; let allConverted = true;
+      chocIdx.forEach(i => {
+        const ing = newIngredients[i];
+        const g = originalGrams({ amount: ing.amount, unit: ing.unit, category: 'Chocolate', customGpc: '' });
+        if(g==null || isNaN(g)){ allConverted = false; return; }
+        totalG += g;
+      });
+      if(allConverted){
+        mergedRow = {
+          id: uid(), name: 'Chocolate', category: 'Chocolate',
+          amount: round1(totalG), unit: 'g', customGpc: '', eggSize: 'Large (L, ~50g)', sugarReduction: 0
+        };
+      }
+    }
+
+    if(mergedRow){
+      for(let k=chocIdx.length-1; k>=0; k--){ newIngredients.splice(chocIdx[k],1); }
+      newIngredients.splice(chocIdx[0], 0, mergedRow);
     }
   }
 
-  if(methodLines.length > 0){
-    let notesText = methodLines.join('\n');
-    if(foundOvenTemp && !/bake|oven|ไฟบนล่าง/i.test(notesText)){
-      notesText = `Bake at ${foundOvenTemp}°C.\n\n` + notesText;
-    }
-    document.getElementById('notesBox').value = notesText;
-    adjustTextareaHeight(document.getElementById('notesBox'));
+  if(newIngredients.length > 0) {
+    ingredients = newIngredients;
+    renderRows();
+    renderResults();
+    requestAnimationFrame(autoResizeAllTextareas);
+    autoResizeAllTextareas();
   }
 
-  renderRows();
-  recalc();
+  statusEl.textContent = `วิเคราะห์สำเร็จ! ได้วัตถุดิบ ${loadedCount} รายการ`;
+  statusEl.className='status-msg ok';
 });
 
-function adjustTextareaHeight(el){
-  el.style.height = 'auto';
-  el.style.height = el.scrollHeight + 'px';
+function currentRecipeData(){
+  // ดึงค่าจากช่อง Category ที่เราเพิ่มเข้าไปใหม่ ถ้าว่างให้เป็น Chocolate cookies
+  const catInput = document.getElementById('recipeCategory');
+  const category = (catInput && catInput.value.trim()) ? catInput.value.trim() : 'Chocolate cookies';
+
+  return {
+    recipeUrl: document.getElementById('recipeUrl') ? document.getElementById('recipeUrl').value : '',
+    pasteText: document.getElementById('pasteBox').value,
+    ingredients: ingredients.map(({id,...rest})=>rest),
+    notes: document.getElementById('notesBox').value,
+    ovenTempC: recipeOvenTempC,
+    savedAt: new Date().toISOString(),
+    category: category // เพิ่มการบันทึกหมวดหมู่เข้าไปในข้อมูลสูตร
+  };
 }
-document.querySelectorAll('textarea').forEach(ta=>{
-  ta.addEventListener('input',()=>adjustTextareaHeight(ta));
-});
 
-document.getElementById('saveBtn').addEventListener('click', async () => {
-  const name = document.getElementById('recipeNameInput').value.trim();
-  const category = document.getElementById('recipeCategory').value.trim() || 'General';
-  const status = document.getElementById('saveStatus');
-
-  if(!name){
-    status.className = 'status-msg err';
-    status.textContent = 'กรุณากรอกชื่อสูตรก่อนกดเซฟด้วยนะคะ';
-    return;
-  }
-  if(!window.ingredients || window.ingredients.length===0){
-    status.className = 'status-msg err';
-    status.textContent = 'สูตรอาหารว่างเปล่า! กรุณาเพิ่มวัตถุดิบอย่างน้อย 1 รายการก่อนค่ะ';
-    return;
-  }
-
-  status.className = 'status-msg';
-  status.textContent = 'กำลังทำการบันทึกขึ้นระบบคลาวด์...';
-
-  const data = {
-    id: uid(), name, category,
-    url: document.getElementById('recipeUrl').value.trim(),
-    ingredients: window.ingredients,
-    notes: document.getElementById('notesBox').value,
-    scalePct, scaleMode, overrideRowId, rowOverrides, totalTargetGrams,
-    checkedResults: Array.from(checkedResults),
-    updatedAt: new Date().toISOString()
-  };
-
-  try {
-    await window.safeStorage.set('recipe:' + data.id, JSON.stringify(data));
-    status.className = 'status-msg ok';
-    status.textContent = `บันทึกสูตร "${name}" สำเร็จเรียบร้อยแล้วค่ะ!`;
-    editingKey = 'recipe:' + data.id;
-    document.getElementById('saveChangesBtn').style.display = 'block';
-    document.getElementById('saveBtn').style.display = 'none';
-    loadSavedList();
-  } catch(e){
-    status.className = 'status-msg err';
-    status.textContent = 'เกิดข้อผิดพลาดในการเซฟข้อมูล: ' + e.message;
-  }
-});
-
-document.getElementById('saveChangesBtn').addEventListener('click', async () => {
-  const status = document.getElementById('saveStatus');
-  if(!editingKey) return;
-  
-  const name = document.getElementById('recipeNameInput').value.trim();
-  const category = document.getElementById('recipeCategory').value.trim() || 'General';
-  
-  if(!name){
-    status.className = 'status-msg err';
-    status.textContent = 'ชื่อสูตรห้ามว่างเด็ดขาดค่ะ';
-    return;
-  }
-
-  status.textContent = 'กำลังบันทึกการเปลี่ยนแปลงปัจจุบัน...';
-
-  const data = {
-    id: editingKey.split(':')[1], name, category,
-    url: document.getElementById('recipeUrl').value.trim(),
-    ingredients: window.ingredients,
-    notes: document.getElementById('notesBox').value,
-    scalePct, scaleMode, overrideRowId, rowOverrides, totalTargetGrams,
-    checkedResults: Array.from(checkedResults),
-    updatedAt: new Date().toISOString()
-  };
-
-  try {
-    await window.safeStorage.set(editingKey, JSON.stringify(data));
-    status.className = 'status-msg ok';
-    status.textContent = '💾 อัปเดตข้อมูลเซฟสูตรเรียบร้อยแล้วค่ะ!';
-    loadSavedList();
-  } catch(e){
-    status.className = 'status-msg err';
-    status.textContent = 'อัปเดตไม่สำเร็จ: ' + e.message;
-  }
-});
-
-async function loadSavedList(){
-  const container = document.getElementById('savedList');
-  container.innerHTML = '<div style="font-size:13px;color:var(--ink-soft);">กำลังโหลดรายการสูตรบนระบบคลาวด์...</div>';
-
-  try {
-    const keys = await window.safeStorage.listPrefix();
-    const items = [];
-    
-    for(let k of keys){
-      const str = await window.safeStorage.get(k);
-      if(str){
-        try{ items.push({ key: k, data: JSON.parse(str) }); }catch(e){}
-      }
-    }
-
-    if(items.length === 0){
-      container.innerHTML = '<div style="font-size:13px;color:var(--ink-soft);text-align:center;padding:12px 0;">ไม่พบสูตรที่บันทึกไว้ใน Firebase</div>';
+async function refreshSavedList(){
+  const listEl = document.getElementById('savedList');
+  if(!listEl) return;
+  listEl.innerHTML = '';
+  try{
+    const keys = await safeStorage.listPrefix();
+    if(keys.length===0){
+      listEl.innerHTML = '<div class="status-msg">No saved recipes yet.</div>';
       return;
     }
 
-    items.sort((a,b) => new Date(b.data.updatedAt || 0) - new Date(a.data.updatedAt || 0));
-    window.allSavedRecipes = items; 
-    renderSavedList(items);
-  } catch(e){
-    container.innerHTML = '<div style="font-size:13px;color:var(--rose);">Unable to load list.</div>';
-  }
-}
+    // 1. ดึงข้อมูลสูตรทั้งหมดมาจัดกลุ่มตาม Category ก่อน
+    const groupedRecipes = {};
 
-function renderSavedList(items) {
-  const container = document.getElementById('savedList');
-  container.innerHTML = '';
+    for(const key of keys){
+      let rawVal = await safeStorage.get(key);
+      if(!rawVal) continue;
+      let data = JSON.parse(rawVal);
+      if(!data) continue;
 
-  const categories = {};
-  items.forEach(item => {
-    const cat = item.data.category || 'General';
-    if(!categories[cat]) categories[cat] = [];
-    categories[cat].push(item);
-  });
-
-  const datalist = document.getElementById('categorySuggestions');
-  if(datalist){
-    datalist.innerHTML = Object.keys(categories).map(c=>`<option value="${c}">`).join('');
-  }
-
-  for(let cat in categories) {
-    const details = document.createElement('details');
-    details.open = true;
-    details.style.marginBottom = '10px';
-    
-    const summary = document.createElement('summary');
-    summary.style.cursor = 'pointer';
-    summary.style.fontWeight = 'bold';
-    summary.style.fontSize = '13px';
-    summary.style.color = 'var(--accent-deep)';
-    summary.textContent = `📂 ${cat} (${categories[cat].length})`;
-    details.appendChild(summary);
-
-    const subCont = document.createElement('div');
-    subCont.className = "recipe-category-content";
-    subCont.style.display = 'flex';
-    subCont.style.flexDirection = 'column';
-    subCont.style.gap = '6px';
-    subCont.style.marginTop = '6px';
-    subCont.style.paddingLeft = '8px';
-
-    categories[cat].forEach(item => {
-      const div = document.createElement('div');
-      div.className = 'saved-item';
+      // ทางแก้ข้อมูลเก่า: ถ้าไม่มีข้อมูลหมวดหมู่ (category) ให้จัดกลุ่มเป็น 'Chocolate cookies' ทันที
+      const category = (data.category && data.category.trim()) ? data.category.trim() : 'Chocolate cookies';
       
-      const info = document.createElement('div');
-      info.style.cursor = 'pointer';
-      info.style.flex = '1';
-      info.onclick = () => loadRecipe(item.key, item.data);
-      
-      let dateStr = '';
-      if(item.data.updatedAt){
-        const d = new Date(item.data.updatedAt);
-        dateStr = d.toLocaleDateString();
+      if(!groupedRecipes[category]){
+        groupedRecipes[category] = [];
       }
+      groupedRecipes[category].push({ key, data });
+    }
 
-      info.innerHTML = `<strong>${item.data.name}</strong><br><span class="meta">${item.data.ingredients ? item.data.ingredients.length : 0} items · ${dateStr}</span>`;
-      div.appendChild(info);
+    // 2. ดึงชื่อหมวดหมู่ทั้งหมดไปอัปเดตใส่ datalist (Dropdown อัตโนมัติเวลาเซฟครั้งถัดไป)
+    const datalist = document.getElementById('categorySuggestions');
+    if(datalist){
+      datalist.innerHTML = '';
+      Object.keys(groupedRecipes).sort().forEach(cat => {
+        datalist.innerHTML += `<option value="${cat}">`;
+      });
+    }
 
-      const actions = document.createElement('div');
-      actions.className = 'saved-actions';
-      
-      const del = document.createElement('button');
-      del.className = 'btn small danger';
-      del.textContent = '✕';
-      del.onclick = (e) => {
-        e.stopPropagation();
-        deleteRecipe(item.key, item.data.name);
-      };
-      
-      actions.appendChild(del);
-      div.appendChild(actions);
-      subCont.appendChild(div);
+    // 3. วนลูปสร้าง UI แยกกลุ่มตามโฟลเดอร์หมวดหมู่
+    Object.keys(groupedRecipes).sort().forEach(categoryName => {
+      const categoryGroup = document.createElement('div');
+      categoryGroup.className = 'recipe-category-group';
+      categoryGroup.style.marginBottom = '12px';
+      categoryGroup.style.border = '1px solid var(--paper-line)';
+      categoryGroup.style.borderRadius = '6px';
+      categoryGroup.style.overflow = 'hidden';
+
+      // สร้างหัวข้อโฟลเดอร์ (คลิก ยุบ/ขยาย ได้)
+      const header = document.createElement('div');
+      header.className = 'recipe-category-header';
+      header.style.cssText = "background: #f4f0ea; padding: 10px 12px; cursor: pointer; font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center; font-family: 'Fraunces', serif; color: var(--ink);";
+      header.innerHTML = `<span>📁 ${categoryName} (${groupedRecipes[categoryName].length})</span> <span class="toggle-arrow" style="font-size:11px;">▼</span>`;
+
+      // กล่องใส่รายชื่อสูตรในหมวดนี้
+      const contentContainer = document.createElement('div');
+      contentContainer.className = 'recipe-category-content';
+      contentContainer.style.background = '#fff';
+      // ★ แก้ไข: เดิมมี inline style กำหนด max-height:200px ทับ class CSS (.recipe-category-content
+      // ที่กำหนดไว้ 250px) ทำให้ค่าที่ใช้จริงมาจาก 2 ที่ปนกัน และถ้าลืมใส่ inline style ตรงนี้ในโค้ด
+      // จุดอื่นจะได้ค่าไม่เท่ากัน ตอนนี้ลบ inline style ออก ให้ทุกกล่องหมวดหมู่ (ทั้งที่มีอยู่และที่จะ
+      // เพิ่มในอนาคต) ใช้ค่า max-height + overflow-y จาก class เดียวกันเสมอ รับประกันว่าจะมีแท็บเลื่อน
+      // ในกล่องเหมือนกันทุกหมวด เมื่อสูตรในหมวดนั้นๆ มีมากพอที่จะล้นออกจากกรอบ
+
+      // เพิ่มรายชื่อสูตรเข้าไปด้านในกล่อง
+      groupedRecipes[categoryName].forEach(({ key, data }) => {
+        const item = document.createElement('div');
+        item.className = 'saved-item';
+        item.style.borderTop = '1px solid #f4f0ea';
+        const label = key.replace(/^recipe:/,'').replace(/-\d+$/,'');
+        item.innerHTML = `<div><div>${label}</div></div>`;
+        
+        const actions = document.createElement('div');
+        actions.className = 'saved-actions';
+
+        const loadBtn = document.createElement('button');
+        loadBtn.className = 'btn secondary small'; loadBtn.textContent = 'Open';
+        loadBtn.onclick = () => {
+          editingKey = key;
+          checkedResults.clear();
+          document.getElementById('saveChangesBtn').style.display = 'inline-block';
+          document.getElementById('recipeNameInput').value = label;
+          
+          // ดึงค่าหมวดหมู่มาแสดงในช่องกรอกตอนเปิดดูด้วย
+          if(document.getElementById('recipeCategory')) {
+            document.getElementById('recipeCategory').value = data.category || 'Chocolate cookies';
+          }
+
+          ingredients = (data.ingredients || []).map(ing => Object.assign({id:uid()}, ing));
+          if(document.getElementById('recipeUrl')) document.getElementById('recipeUrl').value = data.recipeUrl || '';
+          if(data.recipeUrl){ showRecipeUrlAsLink(data.recipeUrl); } else { showRecipeUrlAsInput(); }
+          document.getElementById('pasteBox').value = data.pasteText || '';
+          document.getElementById('notesBox').value = data.notes || '';
+          recipeOvenTempC = (typeof data.ovenTempC === 'number') ? data.ovenTempC : null;
+          scaleMode = 'pct'; scalePct = 100; overrideRowId = null;
+          renderRows(); renderResults();
+          document.getElementById('saveStatus').textContent = `Opened recipe "${label}".`;
+          document.getElementById('saveStatus').className = 'status-msg ok';
+          requestAnimationFrame(autoResizeAllTextareas);
+        };
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn danger small'; delBtn.textContent = 'Delete';
+        delBtn.onclick = async () => {
+          if(confirm(`Are you sure you want to delete "${label}"?`)) {
+            await safeStorage.delete(key);
+            refreshSavedList();
+          }
+        };
+
+        actions.appendChild(loadBtn); actions.appendChild(delBtn);
+        item.appendChild(actions);
+        contentContainer.appendChild(item);
+      });
+
+      // ใส่ฟังก์ชันคลิกเพื่อ ยุบ-ขยาย กลุ่ม
+      header.addEventListener('click', () => {
+        if(contentContainer.style.display === 'none'){
+          contentContainer.style.display = 'block';
+          header.querySelector('.toggle-arrow').innerText = '▼';
+        } else {
+          contentContainer.style.display = 'none';
+          header.querySelector('.toggle-arrow').innerText = '►';
+        }
+      });
+
+      categoryGroup.appendChild(header);
+      categoryGroup.appendChild(contentContainer);
+      listEl.appendChild(categoryGroup);
     });
 
-    details.appendChild(subCont);
-    container.appendChild(details);
+  }catch(err){
+    console.error('refreshSavedList error:', err);
+    listEl.innerHTML = '<div class="status-msg err">Unable to load list. (' + (err && err.message ? err.message : err) + ')</div>';
   }
 }
 
-document.getElementById('recipeSearch').addEventListener('input', e => {
-  const q = e.target.value.toLowerCase().trim();
-  if(!window.allSavedRecipes) return;
-  if(!q){
-    renderSavedList(window.allSavedRecipes);
-    return;
+document.getElementById('saveBtn').addEventListener('click', async ()=>{
+  const nameInput = document.getElementById('recipeNameInput');
+  const name = nameInput.value.trim();
+  const statusEl = document.getElementById('saveStatus');
+  if(!name){ statusEl.textContent='Name the recipe first.'; statusEl.className='status-msg err'; return; }
+  if(ingredients.length===0){ statusEl.textContent='No ingredients to save yet.'; statusEl.className='status-msg err'; return; }
+
+  try{
+    const key = `recipe:${name}-${Date.now()}`;
+    await safeStorage.set(key, JSON.stringify(currentRecipeData()));
+    statusEl.textContent = `Saved "${name}".`;
+    statusEl.className='status-msg ok';
+    nameInput.value='';
+    
+    // เพิ่มบรรทัดนี้เพื่อล้างช่อง Category หลังจากกดเซฟเสร็จแล้ว
+    if(document.getElementById('recipeCategory')) document.getElementById('recipeCategory').value = '';
+    
+    refreshSavedList();
+  }catch(err){
+    statusEl.textContent = 'Save failed.';
+    statusEl.className='status-msg err';
   }
-  const filtered = window.allSavedRecipes.filter(item => {
-    const name = (item.data.name||'').toLowerCase();
-    const cat = (item.data.category||'').toLowerCase();
-    return name.includes(q) || cat.includes(q);
-  });
-  renderSavedList(filtered);
 });
 
-function loadRecipe(key, data){
-  editingKey = key;
-  window.ingredients = data.ingredients || [];
-  rowOverrides = data.rowOverrides || {};
-  overrideRowId = data.overrideRowId || null;
-  totalTargetGrams = data.totalTargetGrams || null;
-  scalePct = data.scalePct || 100;
-  scaleMode = data.scaleMode || 'pct';
-  checkedResults = new Set(data.checkedResults || []);
+document.getElementById('saveChangesBtn').addEventListener('click', async ()=>{
+ if(!editingKey) return;
+ const statusEl=document.getElementById('saveStatus');
+ try{
+   await safeStorage.set(editingKey, JSON.stringify(currentRecipeData()));
+   statusEl.textContent='Changes saved.';
+   statusEl.className='status-msg ok';
+   refreshSavedList();
+ }catch(err){
+   statusEl.textContent='Update failed.';
+   statusEl.className='status-msg err';
+ }
+});
 
-  document.getElementById('recipeNameInput').value = data.name || '';
-  document.getElementById('recipeCategory').value = data.category || '';
-  document.getElementById('notesBox').value = data.notes || '';
-  adjustTextareaHeight(document.getElementById('notesBox'));
+document.getElementById('addRowBtn').addEventListener('click', function() {
+    addRow();
+});
 
-  const url = data.url || '';
-  document.getElementById('recipeUrl').value = url;
-  if(url){
-    document.getElementById('recipeUrl').style.display = 'none';
-    const link = document.getElementById('recipeUrlLink');
-    link.href = url;
-    link.textContent = '🔗 ' + (data.name || 'Original Recipe Link');
-    document.getElementById('recipeUrlView').style.display = 'flex';
-  } else {
-    document.getElementById('recipeUrl').style.display = 'block';
-    document.getElementById('recipeUrlView').style.display = 'none';
-  }
-
-  document.getElementById('pasteBox').value = '';
-  document.getElementById('customPct').value = (scaleMode==='pct' && !PRESETS.includes(scalePct)) ? Math.round(scalePct) : '';
-  document.getElementById('scaleReadout').innerHTML = Math.round(scalePct) + '<span> %</span>';
-  
-  document.getElementById('saveChangesBtn').style.display = 'block';
-  document.getElementById('saveBtn').style.display = 'none';
-  document.getElementById('saveStatus').textContent = '';
-
-  renderPills();
+document.getElementById("clearBtn").addEventListener("click",function(){
+  if(document.getElementById("recipeUrl")) document.getElementById("recipeUrl").value="";
+  showRecipeUrlAsInput();
+  document.getElementById("pasteBox").value="";
+  document.getElementById("notesBox").value="";
+  document.getElementById("extractStatus").textContent="";
+  recipeOvenTempC=null;
+  editingKey=null;
+  document.getElementById('saveChangesBtn').style.display='none';
+  ingredients=[];
+  overrideRowId=null;
+  rowOverrides={};
+  totalTargetGrams=null;
+  scalePct=100;
+  scaleMode="pct";
+  checkedResults.clear();
   renderRows();
-  recalc();
-}
-
-async function deleteRecipe(key, name){
-  if(confirm(`คุณต้องการลบสูตร "${name}" ออกจากระบบถาวรใช่หรือไม่?`)){
-    try {
-      await window.safeStorage.delete(key);
-      if(editingKey === key){
-        editingKey = null;
-        document.getElementById('saveChangesBtn').style.display = 'none';
-        document.getElementById('saveBtn').style.display = 'block';
-        document.getElementById('recipeNameInput').value = '';
-      }
-      loadSavedList();
-    } catch(e){
-      alert('ลบสูตรไม่สำเร็จ: ' + e.message);
-    }
-  }
-}
-
-document.getElementById('editRecipeUrlBtn').addEventListener('click', () => {
-  document.getElementById('recipeUrlView').style.display = 'none';
-  document.getElementById('recipeUrl').style.display = 'block';
-  document.getElementById('recipeUrl').focus();
+  renderResults();
+  renderPills();
+  requestAnimationFrame(autoResizeAllTextareas);
 });
 
-document.getElementById('exportPdfBtn').addEventListener('click', () => {
-   const area = document.getElementById('printArea');
-   const name = document.getElementById('recipeNameInput').value.trim() || 'Untitled Scaled Recipe';
-   const notes = document.getElementById('notesBox').value.trim();
-   const url = document.getElementById('recipeUrl').value.trim();
-   
-   let html = `<h1>${name}</h1>`;
-   if(url) {
-     html += `<p style="font-family:var(--sans); font-size:12px; margin-top:-10px;"><a href="${url}" target="_blank" style="color:var(--ink-soft);">${url}</a></p>`;
-   }
-   
-   html += `<p style="font-family:var(--sans); font-size:13px; color:var(--accent-deep); margin-top:-5px;"><strong>Scale Factor:</strong> ${Math.round(scalePct)}%</p>`;
-   html += '<table><tr><th>Ingredient</th><th style="text-align:right">Weight (g)</th></tr>';
-   
+function showRecipeUrlAsLink(url){
+  const input = document.getElementById('recipeUrl');
+  const view = document.getElementById('recipeUrlView');
+  const link = document.getElementById('recipeUrlLink');
+  if(!input || !view || !link) return;
+  input.style.display = 'none';
+  view.style.display = 'flex';
+  link.href = url;
+  link.textContent = url;
+}
+function showRecipeUrlAsInput(){
+  const input = document.getElementById('recipeUrl');
+  const view = document.getElementById('recipeUrlView');
+  if(!input || !view) return;
+  input.style.display = '';
+  view.style.display = 'none';
+}
+const editRecipeUrlBtnEl = document.getElementById('editRecipeUrlBtn');
+if(editRecipeUrlBtnEl){
+  editRecipeUrlBtnEl.onclick = () => {
+    showRecipeUrlAsInput();
+    document.getElementById('recipeUrl').focus();
+  };
+}
+
+function autoResizeTextarea(el){
+    if(!el) return;
+    el.style.overflowY='hidden';
+    el.style.resize='none';
+    el.style.height='auto';
+    el.style.height=(el.scrollHeight)+'px';
+}
+
+function autoResizeAllTextareas(){
+    document.querySelectorAll('textarea').forEach(autoResizeTextarea);
+}
+
+window.addEventListener('load', ()=>{
+    requestAnimationFrame(autoResizeAllTextareas);
+});
+
+document.addEventListener('input', (e)=>{
+    if(e.target && e.target.tagName==='TEXTAREA'){
+        autoResizeTextarea(e.target);
+    }
+});
+
+function filterSavedRecipes(){
+  const q = (document.getElementById('recipeSearch')?.value || '').toLowerCase().trim();
+  
+  document.querySelectorAll('#savedList .recipe-category-group').forEach(group => {
+    let visibleItemsInGroup = 0;
+    const items = group.querySelectorAll('.saved-item');
+    const content = group.querySelector('.recipe-category-content');
+    const arrow = group.querySelector('.toggle-arrow');
+    
+    items.forEach(item => {
+      const text = item.firstElementChild?.innerText.toLowerCase() || '';
+      if(text.includes(q)){
+        item.style.display = 'flex';
+        visibleItemsInGroup++;
+      } else {
+        item.style.display = 'none';
+      }
+    });
+
+    // ถ้าในกลุ่มมีสูตรที่ตรงกับคำค้นหา ให้แสดงโฟลเดอร์นั้นขึ้นมา และสั่งขยายออโต้
+    if(visibleItemsInGroup > 0 || q === ''){
+      group.style.display = 'block';
+      if (q !== '') {
+        content.style.display = 'block';
+        if(arrow) arrow.innerText = '▼';
+      }
+    } else {
+      group.style.display = 'none';
+    }
+  });
+}
+
+document.addEventListener('input', e=>{
+  if(e.target && e.target.id==='recipeSearch') filterSavedRecipes();
+});
+
+// เริ่มต้นแถวเริ่มต้นของวัตถุดิบตัวอย่าง
+addRow({name:'All-purpose flour', category:'All-purpose flour', amount:300, unit:'g'});
+addRow({name:'Butter', category:'Butter', amount:227, unit:'g'});
+addRow({name:'Granulated sugar', category:'Granulated sugar', amount:200, unit:'g'});
+addRow({name:'Egg', category:'Other / Custom', amount:2, unit:'egg', eggSize:'Large (L, ~50g)'});
+
+renderRows();
+renderPills();
+renderResults();
+updateTotalReadout();
+
+if(typeof window.onAuthReady === 'function'){
+  window.onAuthReady(refreshSavedList);
+} else {
+  // เผื่อกรณีเบราว์เซอร์เก่าที่โหลด module script ช้าผิดปกติ ใช้ fallback แบบเดิมสำรองไว้
+  setTimeout(() => { refreshSavedList(); }, 1000);
+}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+ const btn=document.getElementById('exportPdfBtn');
+ if(!btn) return;
+ btn.addEventListener('click',function(){
+   // ★ แก้ไข: ย้อนกลับมาใช้ window.print() (หน้าต่างพิมพ์/ตัวอย่างก่อนพิมพ์) แบบเดิม
+   // เพราะ jsPDF ใช้ฟอนต์มาตรฐานที่ไม่รองรับภาษาไทย ทำให้ข้อความไทยกลายเป็นตัวอักษรมั่วเวลา export
+   // ส่วนวิธีนี้ใช้การ render ของเบราว์เซอร์เอง จึงรองรับภาษาไทยได้ถูกต้องเสมอ
+   const area=document.getElementById('printArea');
+   const recipe=(document.getElementById('recipeNameInput')||{}).value||'Recipe';
+   const notes=(document.getElementById('notesBox')||{}).value||'';
+   const url=(document.getElementById('recipeUrl')||{}).value||'';
+   let html='<h1>'+recipe+'</h1>';
+   if(url) html+='<p><b>Source:</b> '+url+'</p>';
+   html+='<h2>Ingredients (Scaled)</h2><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%"><tr><th>Ingredient</th><th>Scaled (g)</th></tr>';
    document.querySelectorAll('#resultsBody tr').forEach(function(tr){
       if(tr.classList.contains('warn-row')||tr.classList.contains('total-row')) return;
       const tds=tr.querySelectorAll('td');
@@ -1447,23 +1580,18 @@ document.getElementById('exportPdfBtn').addEventListener('click', () => {
          html+='<tr><td>'+name+'</td><td style="text-align:right">'+val+'</td></tr>';
       }
    });
-   
-   if(lastTotalOrigGrams && !isNaN(lastTotalOrigGrams)){
-      const factor = scalePct / 100;
-      html += `<tr style="font-weight:bold; border-top:2px solid var(--ink);"><td style="padding-top:12px;">Total Weight</td><td style="text-align:right; padding-top:12px;">${round1(lastTotalOrigGrams * factor)} g</td></tr>`;
-   }
-   
-   html+='</table>';
-   if(notes) {
-     html+=`<h2>Method / Baking Notes</h2><div style="white-space:pre-wrap; font-family:var(--sans); font-size:13.5px; line-height:1.6; color:var(--ink);">${notes}</div>`;
-   }
+   html+='</table><h2>Method / Baking Notes</h2><div style="white-space:pre-wrap">'+notes+'</div>';
    area.innerHTML=html;
 
+   // ย้าย printArea ออกมาเป็นลูกโดยตรงของ <body> ชั่วคราวก่อนพิมพ์
+   // เพื่อให้ CSS กฎ "body > *" ทำงานได้ถูกต้อง (เดิม printArea ถูกฝังลึกอยู่ใน .wrap/.main-content)
+   // แล้วค่อยย้ายกลับที่เดิมหลังพิมพ์เสร็จ เพื่อไม่กระทบตำแหน่งเดิมของมันในหน้าเว็บ
    const originalParent = area.parentNode;
    const originalNextSibling = area.nextSibling;
    document.body.appendChild(area);
 
    area.style.display='block';
+   // รอให้ browser วาดหน้าจอเสร็จจริงๆ ก่อนค่อยเปิดหน้าต่างพิมพ์ (ช่วยเรื่อง timing บนมือถือบางรุ่น)
    requestAnimationFrame(function(){
      requestAnimationFrame(function(){
        setTimeout(function(){
@@ -1471,17 +1599,12 @@ document.getElementById('exportPdfBtn').addEventListener('click', () => {
          area.style.display='none';
          if(originalNextSibling){ originalParent.insertBefore(area, originalNextSibling); }
          else { originalParent.appendChild(area); }
-       }, 50);
+       },300);
      });
    });
+ });
 });
-
-window.onAuthReady(function(){
-  loadSavedList();
-});
-renderPills();
-renderRows();
-recalc();
 </script>
+
 </body>
 </html>
