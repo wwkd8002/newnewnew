@@ -285,6 +285,10 @@
     overflow-y: auto;
     padding-right: 4px;
   }
+.recipe-category-content {
+    max-height: 250px;
+    overflow-y: auto;
+  }
   .saved-item {
     display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
     font-family: var(--sans); font-size: 13px; padding: 9px 12px;
@@ -1291,6 +1295,8 @@ async function refreshSavedList(){
       const contentContainer = document.createElement('div');
       contentContainer.className = 'recipe-category-content';
       contentContainer.style.background = '#fff';
+            contentContainer.style.maxHeight = '200px'; 
+      contentContainer.style.overflowY = 'auto';
 
       // เพิ่มรายชื่อสูตรเข้าไปด้านในกล่อง
       groupedRecipes[categoryName].forEach(({ key, data }) => {
