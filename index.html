@@ -416,8 +416,17 @@
 <details open>
 <summary>📁 Saved Recipes</summary>
 <div class="card">
-    <h2>Save recipe</h2>
+   <h2>Save recipe</h2>
     <div class="card-note">Save your recipes securely on the cloud.</div>
+    
+    <div style="margin-bottom: 12px;">
+      <input type="text" id="recipeCategory" placeholder="📁 Category (e.g., Chocolate cookies, Oatmeal raisin)" list="categorySuggestions" style="width: 100%; padding: 9px 10px; border: 1px solid var(--paper-line); border-radius: 6px; font-family: var(--sans); font-size: 14px; box-sizing: border-box;">
+      <datalist id="categorySuggestions">
+        <option value="Chocolate cookies">
+        <option value="Oatmeal raisin">
+      </datalist>
+    </div>
+
     <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
       <input type="text" id="recipeNameInput" placeholder="Name this recipe, e.g. Chocolate chip cookies" style="flex:1; min-width:180px; padding:9px 10px; border:1px solid var(--paper-line); border-radius:6px; font-family:var(--sans); font-size:14px;">
       <button class="btn" id="saveBtn">Save this recipe</button>
@@ -1210,13 +1219,18 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 });
 
 function currentRecipeData(){
+  // ดึงค่าจากช่อง Category ที่เราเพิ่มเข้าไปใหม่ ถ้าว่างให้เป็น Chocolate cookies
+  const catInput = document.getElementById('recipeCategory');
+  const category = (catInput && catInput.value.trim()) ? catInput.value.trim() : 'Chocolate cookies';
+
   return {
     recipeUrl: document.getElementById('recipeUrl') ? document.getElementById('recipeUrl').value : '',
     pasteText: document.getElementById('pasteBox').value,
     ingredients: ingredients.map(({id,...rest})=>rest),
     notes: document.getElementById('notesBox').value,
     ovenTempC: recipeOvenTempC,
-    savedAt: new Date().toISOString()
+    savedAt: new Date().toISOString(),
+    category: category // เพิ่มการบันทึกหมวดหมู่เข้าไปในข้อมูลสูตร
   };
 }
 
@@ -1230,54 +1244,122 @@ async function refreshSavedList(){
       listEl.innerHTML = '<div class="status-msg">No saved recipes yet.</div>';
       return;
     }
+
+    // 1. ดึงข้อมูลสูตรทั้งหมดมาจัดกลุ่มตาม Category ก่อน
+    const groupedRecipes = {};
+
     for(const key of keys){
       let rawVal = await safeStorage.get(key);
       if(!rawVal) continue;
       let data = JSON.parse(rawVal);
       if(!data) continue;
 
-      const item = document.createElement('div');
-      item.className='saved-item';
-      const label = key.replace(/^recipe:/,'').replace(/-\d+$/,'');
-      item.innerHTML = `<div><div>${label}</div></div>`;
+      // ทางแก้ข้อมูลเก่า: ถ้าไม่มีข้อมูลหมวดหมู่ (category) ให้จัดกลุ่มเป็น 'Chocolate cookies' ทันที
+      const category = (data.category && data.category.trim()) ? data.category.trim() : 'Chocolate cookies';
       
-      const actions = document.createElement('div');
-      actions.className='saved-actions';
-
-      const loadBtn = document.createElement('button');
-      loadBtn.className='btn secondary small'; loadBtn.textContent='Open';
-      loadBtn.onclick=()=>{
-        editingKey = key;
-        checkedResults.clear();
-        document.getElementById('saveChangesBtn').style.display='inline-block';
-        document.getElementById('recipeNameInput').value=label;
-        ingredients = (data.ingredients||[]).map(ing=>Object.assign({id:uid()}, ing));
-        if(document.getElementById('recipeUrl')) document.getElementById('recipeUrl').value = data.recipeUrl || '';
-        if(data.recipeUrl){ showRecipeUrlAsLink(data.recipeUrl); } else { showRecipeUrlAsInput(); }
-        document.getElementById('pasteBox').value = data.pasteText || '';
-        document.getElementById('notesBox').value = data.notes || '';
-        recipeOvenTempC = (typeof data.ovenTempC === 'number') ? data.ovenTempC : null;
-        scaleMode='pct'; scalePct=100; overrideRowId=null;
-        renderRows(); renderResults();
-        document.getElementById('saveStatus').textContent = `Opened recipe "${label}".`;
-        document.getElementById('saveStatus').className='status-msg ok';
-        requestAnimationFrame(autoResizeAllTextareas);
-      };
-
-      const delBtn = document.createElement('button');
-      delBtn.className='btn danger small'; delBtn.textContent='Delete';
-      delBtn.onclick=async ()=>{
-        await safeStorage.delete(key);
-        refreshSavedList();
-      };
-
-      actions.appendChild(loadBtn); actions.appendChild(delBtn);
-      item.appendChild(actions);
-      listEl.appendChild(item);
+      if(!groupedRecipes[category]){
+        groupedRecipes[category] = [];
+      }
+      groupedRecipes[category].push({ key, data });
     }
+
+    // 2. ดึงชื่อหมวดหมู่ทั้งหมดไปอัปเดตใส่ datalist (Dropdown อัตโนมัติเวลาเซฟครั้งถัดไป)
+    const datalist = document.getElementById('categorySuggestions');
+    if(datalist){
+      datalist.innerHTML = '';
+      Object.keys(groupedRecipes).sort().forEach(cat => {
+        datalist.innerHTML += `<option value="${cat}">`;
+      });
+    }
+
+    // 3. วนลูปสร้าง UI แยกกลุ่มตามโฟลเดอร์หมวดหมู่
+    Object.keys(groupedRecipes).sort().forEach(categoryName => {
+      const categoryGroup = document.createElement('div');
+      categoryGroup.className = 'recipe-category-group';
+      categoryGroup.style.marginBottom = '12px';
+      categoryGroup.style.border = '1px solid var(--paper-line)';
+      categoryGroup.style.borderRadius = '6px';
+      categoryGroup.style.overflow = 'hidden';
+
+      // สร้างหัวข้อโฟลเดอร์ (คลิก ยุบ/ขยาย ได้)
+      const header = document.createElement('div');
+      header.className = 'recipe-category-header';
+      header.style.cssText = "background: #f4f0ea; padding: 10px 12px; cursor: pointer; font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center; font-family: 'Fraunces', serif; color: var(--ink);";
+      header.innerHTML = `<span>📁 ${categoryName} (${groupedRecipes[categoryName].length})</span> <span class="toggle-arrow" style="font-size:11px;">▼</span>`;
+
+      // กล่องใส่รายชื่อสูตรในหมวดนี้
+      const contentContainer = document.createElement('div');
+      contentContainer.className = 'recipe-category-content';
+      contentContainer.style.background = '#fff';
+
+      // เพิ่มรายชื่อสูตรเข้าไปด้านในกล่อง
+      groupedRecipes[categoryName].forEach(({ key, data }) => {
+        const item = document.createElement('div');
+        item.className = 'saved-item';
+        item.style.borderTop = '1px solid #f4f0ea';
+        const label = key.replace(/^recipe:/,'').replace(/-\d+$/,'');
+        item.innerHTML = `<div><div>${label}</div></div>`;
+        
+        const actions = document.createElement('div');
+        actions.className = 'saved-actions';
+
+        const loadBtn = document.createElement('button');
+        loadBtn.className = 'btn secondary small'; loadBtn.textContent = 'Open';
+        loadBtn.onclick = () => {
+          editingKey = key;
+          checkedResults.clear();
+          document.getElementById('saveChangesBtn').style.display = 'inline-block';
+          document.getElementById('recipeNameInput').value = label;
+          
+          // ดึงค่าหมวดหมู่มาแสดงในช่องกรอกตอนเปิดดูด้วย
+          if(document.getElementById('recipeCategory')) {
+            document.getElementById('recipeCategory').value = data.category || 'Chocolate cookies';
+          }
+
+          ingredients = (data.ingredients || []).map(ing => Object.assign({id:uid()}, ing));
+          if(document.getElementById('recipeUrl')) document.getElementById('recipeUrl').value = data.recipeUrl || '';
+          if(data.recipeUrl){ showRecipeUrlAsLink(data.recipeUrl); } else { showRecipeUrlAsInput(); }
+          document.getElementById('pasteBox').value = data.pasteText || '';
+          document.getElementById('notesBox').value = data.notes || '';
+          recipeOvenTempC = (typeof data.ovenTempC === 'number') ? data.ovenTempC : null;
+          scaleMode = 'pct'; scalePct = 100; overrideRowId = null;
+          renderRows(); renderResults();
+          document.getElementById('saveStatus').textContent = `Opened recipe "${label}".`;
+          document.getElementById('saveStatus').className = 'status-msg ok';
+          requestAnimationFrame(autoResizeAllTextareas);
+        };
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn danger small'; delBtn.textContent = 'Delete';
+        delBtn.onclick = async () => {
+          if(confirm(`Are you sure you want to delete "${label}"?`)) {
+            await safeStorage.delete(key);
+            refreshSavedList();
+          }
+        };
+
+        actions.appendChild(loadBtn); actions.appendChild(delBtn);
+        item.appendChild(actions);
+        contentContainer.appendChild(item);
+      });
+
+      // ใส่ฟังก์ชันคลิกเพื่อ ยุบ-ขยาย กลุ่ม
+      header.addEventListener('click', () => {
+        if(contentContainer.style.display === 'none'){
+          contentContainer.style.display = 'block';
+          header.querySelector('.toggle-arrow').innerText = '▼';
+        } else {
+          contentContainer.style.display = 'none';
+          header.querySelector('.toggle-arrow').innerText = '►';
+        }
+      });
+
+      categoryGroup.appendChild(header);
+      categoryGroup.appendChild(contentContainer);
+      listEl.appendChild(categoryGroup);
+    });
+
   }catch(err){
-    // ★ แก้ไข: โชว์ error จริงด้วย (เช่น permission denied) เพื่อให้ debug ง่ายขึ้นในอนาคต
-    // แทนที่จะขึ้นข้อความกลางๆ ที่ไม่บอกสาเหตุเลย
     console.error('refreshSavedList error:', err);
     listEl.innerHTML = '<div class="status-msg err">Unable to load list. (' + (err && err.message ? err.message : err) + ')</div>';
   }
@@ -1296,6 +1378,10 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     statusEl.textContent = `Saved "${name}".`;
     statusEl.className='status-msg ok';
     nameInput.value='';
+    
+    // เพิ่มบรรทัดนี้เพื่อล้างช่อง Category หลังจากกดเซฟเสร็จแล้ว
+    if(document.getElementById('recipeCategory')) document.getElementById('recipeCategory').value = '';
+    
     refreshSavedList();
   }catch(err){
     statusEl.textContent = 'Save failed.';
@@ -1391,10 +1477,34 @@ document.addEventListener('input', (e)=>{
 });
 
 function filterSavedRecipes(){
-  const q=(document.getElementById('recipeSearch')?.value||'').toLowerCase().trim();
-  document.querySelectorAll('#savedList .saved-item').forEach(item=>{
-    const t=item.firstElementChild?.innerText.toLowerCase()||'';
-    item.style.display=t.includes(q)?'flex':'none';
+  const q = (document.getElementById('recipeSearch')?.value || '').toLowerCase().trim();
+  
+  document.querySelectorAll('#savedList .recipe-category-group').forEach(group => {
+    let visibleItemsInGroup = 0;
+    const items = group.querySelectorAll('.saved-item');
+    const content = group.querySelector('.recipe-category-content');
+    const arrow = group.querySelector('.toggle-arrow');
+    
+    items.forEach(item => {
+      const text = item.firstElementChild?.innerText.toLowerCase() || '';
+      if(text.includes(q)){
+        item.style.display = 'flex';
+        visibleItemsInGroup++;
+      } else {
+        item.style.display = 'none';
+      }
+    });
+
+    // ถ้าในกลุ่มมีสูตรที่ตรงกับคำค้นหา ให้แสดงโฟลเดอร์นั้นขึ้นมา และสั่งขยายออโต้
+    if(visibleItemsInGroup > 0 || q === ''){
+      group.style.display = 'block';
+      if (q !== '') {
+        content.style.display = 'block';
+        if(arrow) arrow.innerText = '▼';
+      }
+    } else {
+      group.style.display = 'none';
+    }
   });
 }
 
