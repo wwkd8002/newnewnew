@@ -51,6 +51,7 @@
     else window.__authReadyCallbacks.push(cb);
   };
 
+  // แก้ไขส่วนดึงข้อมูลให้ปลอดภัย ไม่บล็อกการทำงานอื่นของหน้าเว็บ
   window.globalIngredientDb = {};
   function listenToIngredientDb() {
     try {
@@ -323,7 +324,7 @@
   footer { text-align: center; font-family: var(--sans); font-size: 11.5px; color: var(--ink-soft); margin-top: 22px; line-height: 1.7; }
 
   .layout{display:flex;gap:20px;align-items:flex-start}
-  .sidebar{width:320px;position:sticky;top:15px}
+  .sidebar{width:280px;position:sticky;top:15px}
   .main-content{flex:1;min-width:0}
   .saved-card details summary{cursor:pointer;font-family:var(--sans);font-weight:600;padding:6px 0;}
   @media (max-width:900px){
@@ -434,29 +435,30 @@
   </header>
 <div class="layout">
 <div class="sidebar">
-<div class="card">
-<details open class="saved-card">
+<div class="card saved-card">
+<details open>
 <summary>📁 Saved Recipes</summary>
-  <div style="margin-top: 12px; padding: 10px; background: rgba(54,43,34,0.02); border-radius: 8px; border: 1px dashed var(--paper-line);">
-    <h2 style="font-size: 11px; margin-bottom: 8px;">Save current recipe</h2>
-    <div style="margin-bottom: 8px;">
-      <input type="text" id="recipeCategory" placeholder="📁 Category (e.g., Chocolate cookies)" list="categorySuggestions" style="width: 100%; padding: 8px; border: 1px solid var(--paper-line); border-radius: 6px; font-family: var(--sans); font-size: 13px;">
+<div class="card">
+   <h2>Save recipe</h2>
+    <div class="card-note">Save your recipes securely on the cloud.</div>
+    
+    <div style="margin-bottom: 12px;">
+      <input type="text" id="recipeCategory" placeholder="📁 Category (e.g., Chocolate cookies, Oatmeal raisin)" list="categorySuggestions" style="width: 100%; padding: 9px 10px; border: 1px solid var(--paper-line); border-radius: 6px; font-family: var(--sans); font-size: 14px; box-sizing: border-box;">
       <datalist id="categorySuggestions">
         <option value="Chocolate cookies">
         <option value="Oatmeal raisin">
       </datalist>
     </div>
-    <div style="margin-bottom: 8px;">
-      <input type="text" id="recipeNameInput" placeholder="Recipe name" style="width: 100%; padding: 8px; border: 1px solid var(--paper-line); border-radius: 6px; font-family: var(--sans); font-size: 13px;">
+
+    <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+      <input type="text" id="recipeNameInput" placeholder="Name this recipe, e.g. Chocolate chip cookies" style="flex:1; min-width:180px; padding:9px 10px; border:1px solid var(--paper-line); border-radius:6px; font-family:var(--sans); font-size:14px;">
+      <button class="btn" id="saveBtn">Save this recipe</button>
+      <button class="btn secondary" id="saveChangesBtn" style="display:none;">💾 Save Changes</button>
     </div>
-    <div style="display: flex; gap: 6px;">
-      <button class="btn small" id="saveBtn" style="width: 100%;">Save New</button>
-      <button class="btn small gold" id="saveChangesBtn" style="display:none; width: 100%;">Save Changes</button>
-    </div>
-    <div id="saveStatus" class="status-msg" style="font-size: 11px;"></div>
+    <div id="saveStatus" class="status-msg"></div>
+    <input id="recipeSearch" class="saved-search" type="text" placeholder="🔍 Search recipe...">
+    <div id="savedList" class="saved-list" style="margin-top:12px;"></div>
   </div>
-  <input id="recipeSearch" class="saved-search" type="text" placeholder="🔍 Search recipe...">
-  <div id="savedList" class="saved-list"></div>
 </details>
 </div>
 </div>
@@ -564,7 +566,7 @@ const DENSITY = {
   "Chocolate": 170, "Other / Custom": null
 };
 
-const SUGAR_CATEGORIES = ["Granulated sugar", "Brown sugar, packed", "Powdered sugar"];
+const SUGAR_CATEGORIES = ["Granulated sugar", "Brown sugar, packed"];
 const WEIGHT_UNIT_G = { "g": 1, "kg": 1000, "oz": 28.3495 };
 const EGG_PARTS = {
   "Small (S, ~38g)":       {whole:38, yolk:14, white:24},
@@ -603,7 +605,7 @@ function parseAmount(str) {
 
 const CATEGORY_RULES = [
   ['brown sugar', 'Brown sugar, packed'], ['powdered sugar', 'Powdered sugar'],
-  ['icing sugar', 'Powdered sugar'], ['confectioner', 'Powdered sugar'],
+  ['icing sugar', 'Powded sugar'], ['confectioner', 'Powdered sugar'],
   ['granulated sugar', 'Granulated sugar'], ['white sugar', 'Granulated sugar'],
   ['caster sugar', 'Granulated sugar'], ['sugar', 'Granulated sugar'],
   ['cake flour', 'Cake flour'], ['bread flour', 'Bread flour'],
@@ -1477,6 +1479,12 @@ document.getElementById('exportPdfBtn').addEventListener('click', () => {
 window.onAuthReady(function(){
   loadSavedList();
 });
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden && window.__authReady){ loadSavedList(); }
+});
+setTimeout(()=>{
+  if(window.__authReady){ loadSavedList(); }
+},1000);
 renderPills();
 renderRows();
 recalc();
