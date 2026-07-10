@@ -1310,8 +1310,11 @@ async function refreshSavedList(){
       const contentContainer = document.createElement('div');
       contentContainer.className = 'recipe-category-content';
       contentContainer.style.background = '#fff';
-            contentContainer.style.maxHeight = '200px'; 
-      contentContainer.style.overflowY = 'auto';
+      // ★ แก้ไข: เดิมมี inline style กำหนด max-height:200px ทับ class CSS (.recipe-category-content
+      // ที่กำหนดไว้ 250px) ทำให้ค่าที่ใช้จริงมาจาก 2 ที่ปนกัน และถ้าลืมใส่ inline style ตรงนี้ในโค้ด
+      // จุดอื่นจะได้ค่าไม่เท่ากัน ตอนนี้ลบ inline style ออก ให้ทุกกล่องหมวดหมู่ (ทั้งที่มีอยู่และที่จะ
+      // เพิ่มในอนาคต) ใช้ค่า max-height + overflow-y จาก class เดียวกันเสมอ รับประกันว่าจะมีแท็บเลื่อน
+      // ในกล่องเหมือนกันทุกหมวด เมื่อสูตรในหมวดนั้นๆ มีมากพอที่จะล้นออกจากกรอบ
 
       // เพิ่มรายชื่อสูตรเข้าไปด้านในกล่อง
       groupedRecipes[categoryName].forEach(({ key, data }) => {
