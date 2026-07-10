@@ -1451,12 +1451,20 @@ document.addEventListener('DOMContentLoaded',function(){
    document.body.appendChild(area);
 
    area.style.display='block';
-   setTimeout(function(){
-     window.print();
-     area.style.display='none';
-     if(originalNextSibling){ originalParent.insertBefore(area, originalNextSibling); }
-     else { originalParent.appendChild(area); }
-   },100);
+   // ★ แก้ไข: บนมือถือบางรุ่น เบราว์เซอร์อาจยัง layout/render เนื้อหาที่เพิ่งเปลี่ยนไม่เสร็จ
+   // ตอนที่ window.print() ถูกเรียก (100ms อาจไม่พอสำหรับมือถือที่ประมวลผลช้ากว่าคอมพิวเตอร์)
+   // ทำให้ PDF ที่ export ออกมาเป็นหน้าเปล่า แก้โดยรอให้ browser วาดหน้าจอเสร็จจริงๆ ก่อน
+   // (requestAnimationFrame 2 ชั้น = รอครบ 1 รอบ paint) แล้วหน่วงเพิ่มอีกหน่อยเผื่อเครื่องช้า
+   requestAnimationFrame(function(){
+     requestAnimationFrame(function(){
+       setTimeout(function(){
+         window.print();
+         area.style.display='none';
+         if(originalNextSibling){ originalParent.insertBefore(area, originalNextSibling); }
+         else { originalParent.appendChild(area); }
+       },300);
+     });
+   });
  });
 });
 </script>
