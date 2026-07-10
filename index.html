@@ -519,6 +519,9 @@
 </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
 <script>
 const DENSITY = {
   "All-purpose flour": 120, "Cake flour": 114, "Bread flour": 127, "Granulated sugar": 200,
@@ -1423,13 +1426,15 @@ document.addEventListener('DOMContentLoaded',function(){
  const btn=document.getElementById('exportPdfBtn');
  if(!btn) return;
  btn.addEventListener('click',function(){
-   const area=document.getElementById('printArea');
+   // ★ แก้ไข: เดิมใช้ window.print() ซึ่งบนมือถือ (โดยเฉพาะ iOS Safari) render ไม่เสถียร
+   // ทำให้ได้ PDF หน้าเปล่าบ้าง หรือโชว์แค่พื้นหลังเว็บบางส่วน ต่อให้ปรับ timing แล้วก็ยังไม่นิ่ง
+   // เปลี่ยนมาสร้างไฟล์ PDF ตรงๆ ด้วยไลบรารี jsPDF แทน ซึ่งไม่พึ่งพาการ render/พิมพ์ของเบราว์เซอร์เลย
+   // ทำงานเหมือนกันทุกอุปกรณ์ (iPhone, Android, คอมพิวเตอร์) รับประกันไม่มีหน้าเปล่าอีก
    const recipe=(document.getElementById('recipeNameInput')||{}).value||'Recipe';
    const notes=(document.getElementById('notesBox')||{}).value||'';
    const url=(document.getElementById('recipeUrl')||{}).value||'';
-   let html='<h1>'+recipe+'</h1>';
-   if(url) html+='<p><b>Source:</b> '+url+'</p>';
-   html+='<h2>Ingredients (Scaled)</h2><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%"><tr><th>Ingredient</th><th>Scaled (g)</th></tr>';
+
+   const rows = [];
    document.querySelectorAll('#resultsBody tr').forEach(function(tr){
       if(tr.classList.contains('warn-row')||tr.classList.contains('total-row')) return;
       const tds=tr.querySelectorAll('td');
@@ -1437,34 +1442,56 @@ document.addEventListener('DOMContentLoaded',function(){
          const name=tds[1].innerText;
          const inp=tds[3].querySelector('input');
          const val=inp?inp.value:tds[3].innerText;
-         html+='<tr><td>'+name+'</td><td style="text-align:right">'+val+'</td></tr>';
+         rows.push([name, val + ' g']);
       }
    });
-   html+='</table><h2>Method / Baking Notes</h2><div style="white-space:pre-wrap">'+notes+'</div>';
-   area.innerHTML=html;
 
-   // ★ แก้ไข: ย้าย printArea ออกมาเป็นลูกโดยตรงของ <body> ชั่วคราวก่อนพิมพ์
-   // เพื่อให้ CSS กฎ "body > *" ทำงานได้ถูกต้อง (เดิม printArea ถูกฝังลึกอยู่ใน .wrap/.main-content)
-   // แล้วค่อยย้ายกลับที่เดิมหลังพิมพ์เสร็จ เพื่อไม่กระทบตำแหน่งเดิมของมันในหน้าเว็บ
-   const originalParent = area.parentNode;
-   const originalNextSibling = area.nextSibling;
-   document.body.appendChild(area);
+   const { jsPDF } = window.jspdf;
+   const doc = new jsPDF({ unit:'pt', format:'a4' });
+   const pageWidth = doc.internal.pageSize.getWidth();
+   const pageHeight = doc.internal.pageSize.getHeight();
+   const margin = 40;
+   let y = 50;
 
-   area.style.display='block';
-   // ★ แก้ไข: บนมือถือบางรุ่น เบราว์เซอร์อาจยัง layout/render เนื้อหาที่เพิ่งเปลี่ยนไม่เสร็จ
-   // ตอนที่ window.print() ถูกเรียก (100ms อาจไม่พอสำหรับมือถือที่ประมวลผลช้ากว่าคอมพิวเตอร์)
-   // ทำให้ PDF ที่ export ออกมาเป็นหน้าเปล่า แก้โดยรอให้ browser วาดหน้าจอเสร็จจริงๆ ก่อน
-   // (requestAnimationFrame 2 ชั้น = รอครบ 1 รอบ paint) แล้วหน่วงเพิ่มอีกหน่อยเผื่อเครื่องช้า
-   requestAnimationFrame(function(){
-     requestAnimationFrame(function(){
-       setTimeout(function(){
-         window.print();
-         area.style.display='none';
-         if(originalNextSibling){ originalParent.insertBefore(area, originalNextSibling); }
-         else { originalParent.appendChild(area); }
-       },300);
-     });
+   doc.setFontSize(18);
+   doc.text(String(recipe), margin, y);
+   y += 22;
+
+   if(url){
+     doc.setFontSize(10);
+     doc.setTextColor(90);
+     doc.text('Source: ' + url, margin, y);
+     doc.setTextColor(0);
+     y += 18;
+   }
+
+   doc.autoTable({
+     startY: y,
+     margin: { left: margin, right: margin },
+     head: [['Ingredient','Scaled (g)']],
+     body: rows.length ? rows : [['-','-']],
+     styles: { fontSize: 10, cellPadding: 6 },
+     headStyles: { fillColor: [139, 111, 71] }
    });
+
+   y = doc.lastAutoTable.finalY + 26;
+   if(y > pageHeight - 60){ doc.addPage(); y = 50; }
+
+   doc.setFontSize(13);
+   doc.text('Method / Baking Notes', margin, y);
+   y += 18;
+
+   doc.setFontSize(10);
+   const maxWidth = pageWidth - margin*2;
+   const noteLines = doc.splitTextToSize(notes || '-', maxWidth);
+   noteLines.forEach(function(line){
+     if(y > pageHeight - 40){ doc.addPage(); y = 50; }
+     doc.text(line, margin, y);
+     y += 14;
+   });
+
+   const fileName = (String(recipe) || 'recipe').replace(/[^\w\-]+/g,'_') + '.pdf';
+   doc.save(fileName);
  });
 });
 </script>
