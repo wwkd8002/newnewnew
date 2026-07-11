@@ -159,6 +159,7 @@
   .card {
     background: var(--card); border: 1px solid var(--paper-line); border-radius: 10px;
     padding: 20px 20px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(54,43,34,0.06);
+    transition: box-shadow .2s ease;
   }
   .card h2 {
     font-size: 12.5px; margin: 0 0 4px; font-family: var(--sans);
@@ -170,6 +171,7 @@
     width: 100%; font-family: var(--sans); font-size: 14px; padding: 10px;
     border: 1px solid var(--paper-line); border-radius: 6px; background: #fff; color: var(--ink);
     resize: vertical; min-height: 90px;
+    transition: outline-color .15s ease, border-color .15s ease;
   }
   textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
@@ -177,9 +179,12 @@
     font-family: var(--sans); font-size: 13.5px; font-weight: 600;
     padding: 9px 16px; border-radius: 6px; cursor: pointer; border: 1.5px solid var(--accent);
     background: var(--accent); color: #fff;
+    transition: background-color .15s ease, border-color .15s ease, transform .15s ease, box-shadow .15s ease;
   }
-  .btn:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
+  .btn:hover { background: var(--accent-deep); border-color: var(--accent-deep); transform: translateY(-1px); box-shadow: 0 3px 10px rgba(54,43,34,0.16); }
+  .btn:active { transform: translateY(0); box-shadow: none; }
   .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn:disabled:hover { transform: none; box-shadow: none; }
   .btn.secondary { background: #fff; color: var(--accent-deep); border-color: var(--accent); }
   .btn.secondary:hover { background: #eef0e6; }
   .btn.danger { background: #fff; color: var(--rose); border-color: var(--rose); }
@@ -193,7 +198,9 @@
   .ing-card {
     border: 1px solid var(--paper-line); border-radius: 8px; background: #fff;
     padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(54,43,34,0.04);
+    transition: box-shadow .2s ease;
   }
+  .ing-card:hover { box-shadow: 0 3px 10px rgba(54,43,34,0.08); }
   .ing-fields { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
   .field { display: flex; flex-direction: column; gap: 4px; font-family: var(--sans); min-width: 0; }
   .field label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); font-weight: 600; }
@@ -201,6 +208,7 @@
     width: 100%;
     font-family: var(--sans); font-size: 14px; padding: 7px 8px;
     border: 1px solid var(--paper-line); border-radius: 6px; background: #fff; color: var(--ink);
+    transition: outline-color .15s ease, border-color .15s ease;
   }
   .field input:focus, .field select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   .field.name { flex: 2 1 160px; }
@@ -213,6 +221,7 @@
   .del-btn {
     background: none; border: none; color: var(--rose); cursor: pointer;
     font-size: 19px; line-height: 1; padding: 6px 8px; border-radius: 6px;
+    transition: background-color .15s ease;
   }
   .del-btn:hover { background: #f1e0dc; }
 
@@ -230,6 +239,7 @@
     font-family: var(--sans); font-size: 12px; font-weight: 600;
     padding: 4px 10px; border-radius: 14px; border: 1px solid var(--paper-line);
     background: #fff; color: var(--ink); cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
   }
   .mini-pill.active { background: var(--gold); border-color: var(--gold); color: #fff; }
   .mini-pill:hover:not(.active) { border-color: var(--gold); }
@@ -239,6 +249,7 @@
     margin-top: 6px; font-family: var(--sans); font-size: 13.5px; font-weight: 600;
     background: none; border: 1.5px dashed var(--accent); color: var(--accent-deep);
     padding: 9px 14px; border-radius: 6px; cursor: pointer; width: 100%;
+    transition: background-color .15s ease, border-color .15s ease;
   }
   .add-row-btn:hover { background: #eef0e6; }
 
@@ -247,6 +258,7 @@
     font-family: var(--sans); font-size: 13.5px; font-weight: 600;
     padding: 8px 16px; border-radius: 20px; border: 1.5px solid var(--paper-line);
     background: #fff; color: var(--ink); cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
   }
   .pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
   .pill:hover:not(.active) { border-color: var(--accent); }
@@ -289,11 +301,28 @@
     max-height: 250px;
     overflow-y: auto;
   }
+
+  /* ★ เพิ่มใหม่: ปรับ scrollbar ให้เข้าธีมสีครีม/เขียวมะกอกของเว็บ แทนสกอลบาร์เทาๆ มาตรฐานของเบราว์เซอร์ */
+  .saved-list, .recipe-category-content {
+    scrollbar-width: thin;
+    scrollbar-color: var(--paper-line) transparent;
+  }
+  .saved-list::-webkit-scrollbar, .recipe-category-content::-webkit-scrollbar { width: 7px; }
+  .saved-list::-webkit-scrollbar-track, .recipe-category-content::-webkit-scrollbar-track { background: transparent; }
+  .saved-list::-webkit-scrollbar-thumb, .recipe-category-content::-webkit-scrollbar-thumb {
+    background-color: var(--paper-line); border-radius: 10px;
+  }
+  .saved-list::-webkit-scrollbar-thumb:hover, .recipe-category-content::-webkit-scrollbar-thumb:hover {
+    background-color: var(--accent);
+  }
+
   .saved-item {
     display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
     font-family: var(--sans); font-size: 13px; padding: 9px 12px;
     background: #fff; border: 1px solid var(--paper-line); border-radius: 8px;
+    transition: box-shadow .2s ease;
   }
+  .saved-item:hover { box-shadow: 0 2px 8px rgba(54,43,34,0.08); }
   .saved-item .meta { color: var(--ink-soft); font-size: 12px; }
   .saved-actions { display: flex; gap: 6px; }
 
