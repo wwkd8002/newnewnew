@@ -340,7 +340,36 @@
   }
 
   .layout{display:flex;gap:20px;align-items:flex-start}
-  .sidebar{width:280px;position:sticky;top:15px}
+  .sidebar{
+    width:280px;
+    position:sticky;
+    top:15px;
+    align-self:flex-start;
+    max-height:calc(100vh - 30px);
+    overflow-y:auto;
+}
+.saved-card>.card{
+    max-height:none !important;
+    overflow:visible !important;
+}
+.saved-card details{
+    display:flex;
+    flex-direction:column;
+}
+.saved-card details>.card{
+    display:flex;
+    flex-direction:column;
+    max-height:calc(100vh - 90px);
+}
+.saved-list{
+    flex:1 1 auto;
+    max-height:none !important;
+    overflow-y:auto;
+}
+.recipe-category-content{
+    max-height:none !important;
+}
+
   .main-content{flex:1;min-width:0}
   .saved-card details summary{cursor:pointer;font-family:var(--sans);font-weight:600;padding:6px 0;}
   @media (max-width:900px){
