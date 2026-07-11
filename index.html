@@ -149,12 +149,10 @@
   }
   .wrap { max-width: 1200px; margin: 0 auto; }
   header { margin-bottom: 24px; display: flex; align-items: center; gap: 20px; justify-content: space-between; }
-  .header-text { flex: 1 1 auto; min-width: 0; }
-  .header-cookie { flex: 0 0 auto; width: 92px; height: 92px; }
-  @media (max-width: 640px) {
+  .header-text { flex: 1 1 auto; min-width: 0; max-width: 100%; }
+@media (max-width: 640px) {
     header { flex-wrap: wrap; }
-    .header-cookie { width: 64px; height: 64px; order: -1; }
-  }
+}
   .eyebrow {
     font-family: var(--sans); font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
     color: var(--accent-deep); font-weight: 700; margin-bottom: 8px;
@@ -297,16 +295,23 @@
   tr.checked-row td.name-cell, tr.checked-row td.orig { text-decoration: line-through; opacity: .5; }
   tr.checked-row td.result { opacity: .5; }
 
-  .saved-list {
-    display: flex; flex-direction: column; gap: 8px;
-    max-height: 420px;
-    overflow-y: auto;
-    padding-right: 4px;
-  }
-.recipe-category-content {
-    max-height: 250px;
-    overflow-y: auto;
-  }
+  .saved-list{
+display:flex;
+flex-direction:column;
+gap:8px;
+height:auto;
+overflow:visible;
+padding-right:4px;
+padding-bottom:0;
+}
+.recipe-category-content{
+max-height:420px;
+overflow-y:auto;
+overflow-x:hidden;
+padding-right:4px;
+padding-bottom:12px;
+box-sizing:border-box;
+}
 
   /* ★ เพิ่มใหม่: ปรับ scrollbar ให้เข้าธีมสีครีม/เขียวมะกอกของเว็บ แทนสกอลบาร์เทาๆ มาตรฐานของเบราว์เซอร์ */
   .saved-list, .recipe-category-content {
@@ -341,11 +346,16 @@
 
   .layout{display:flex;gap:20px;align-items:flex-start}
   .sidebar{width:280px;position:sticky;top:15px}
+
+
+
+
+
   .main-content{flex:1;min-width:0}
   .saved-card details summary{cursor:pointer;font-family:var(--sans);font-weight:600;padding:6px 0;}
   @media (max-width:900px){
     .layout{flex-direction:column}
-    .sidebar{width:100%;position:static}
+    .sidebar{width:280px;position:sticky;top:15px}
   }
 
   /* ===== Choose a scale + Results after scaling: side by side on desktop (per user request) ===== */
@@ -450,33 +460,7 @@
       <h1>Recipe Scaler</h1>
       <div class="sub">Paste or enter your original recipe, scale it down, ease off the sugar, hit an exact piece count, and save it for next time.</div>
     </div>
-    <svg class="header-cookie" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <!-- คุกกี้ลายเส้นวาดมือ อบอุ่นน่ารัก ใช้โทนสีเดียวกับธีมเว็บ -->
-      <path d="M50 12
-               C68 12, 84 22, 87 39
-               C90 54, 84 68, 72 78
-               C60 88, 42 89, 29 80
-               C17 72, 10 57, 12 43
-               C14 28, 26 14, 42 12
-               C45 11.5, 47 12, 50 12 Z"
-            fill="#E8B96B" stroke="var(--ink)" stroke-width="2.6" stroke-linejoin="round"/>
-      <!-- รอยกัดมุมขวาบน -->
-      <path d="M78 20 C86 24, 90 33, 87 40 C80 39, 73 33, 74 26 C74.5 23, 76 21, 78 20 Z"
-            fill="var(--paper)" stroke="var(--ink)" stroke-width="2.2" stroke-linejoin="round"/>
-      <!-- เศษคุกกี้ตรงรอยกัด -->
-      <circle cx="90" cy="30" r="2.2" fill="#E8B96B" stroke="var(--ink)" stroke-width="1.3"/>
-      <circle cx="95" cy="38" r="1.6" fill="#E8B96B" stroke="var(--ink)" stroke-width="1.2"/>
-      <!-- ช็อกโกแลตชิพ -->
-      <ellipse cx="34" cy="34" rx="4.6" ry="3.8" fill="#5B3A29" stroke="var(--ink)" stroke-width="1.4" transform="rotate(-18 34 34)"/>
-      <ellipse cx="54" cy="30" rx="3.8" ry="3.2" fill="#5B3A29" stroke="var(--ink)" stroke-width="1.4" transform="rotate(10 54 30)"/>
-      <ellipse cx="30" cy="55" rx="3.6" ry="4.2" fill="#5B3A29" stroke="var(--ink)" stroke-width="1.4" transform="rotate(25 30 55)"/>
-      <ellipse cx="50" cy="60" rx="4.2" ry="3.6" fill="#5B3A29" stroke="var(--ink)" stroke-width="1.4" transform="rotate(-12 50 60)"/>
-      <ellipse cx="63" cy="52" rx="3.4" ry="3" fill="#5B3A29" stroke="var(--ink)" stroke-width="1.3" transform="rotate(15 63 52)"/>
-      <ellipse cx="42" cy="70" rx="3" ry="2.6" fill="#5B3A29" stroke="var(--ink)" stroke-width="1.3" transform="rotate(-8 42 70)"/>
-      <!-- ประกายเล็กๆ ให้ดูน่ารักขึ้น -->
-      <path d="M18 20 l2 5 l5 2 l-5 2 l-2 5 l-2-5 l-5-2 l5-2 z" fill="var(--gold)" opacity="0.85"/>
-    </svg>
-  </header>
+</header>
 <div class="layout">
 <div class="sidebar">
 <div class="card saved-card">
