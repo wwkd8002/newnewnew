@@ -149,12 +149,10 @@
   }
   .wrap { max-width: 1200px; margin: 0 auto; }
   header { margin-bottom: 24px; display: flex; align-items: center; gap: 20px; justify-content: space-between; }
-  .header-text { flex: 1 1 auto; min-width: 0; }
-  .header-cookie { flex: 1 1 300px; max-width: 520px; min-width: 200px; height: 100px; }
-  @media (max-width: 640px) {
+  .header-text { flex: 1 1 auto; min-width: 0; max-width: 100%; }
+@media (max-width: 640px) {
     header { flex-wrap: wrap; }
-    .header-cookie { flex-basis: 100%; max-width: 100%; height: 64px; order: -1; }
-  }
+}
   .eyebrow {
     font-family: var(--sans); font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
     color: var(--accent-deep); font-weight: 700; margin-bottom: 8px;
@@ -450,46 +448,7 @@
       <h1>Recipe Scaler</h1>
       <div class="sub">Paste or enter your original recipe, scale it down, ease off the sugar, hit an exact piece count, and save it for next time.</div>
     </div>
-    <svg class="header-cookie" viewBox="0 0 520 100" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-<defs>
-<filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="0.5" stdDeviation="0.5" flood-opacity=".12"/></filter>
-</defs>
-<g filter="url(#s)" stroke="#6a4428" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-<g transform="translate(12,18)">
-<path d="M5 28c0-11 10-20 23-20s23 9 23 20c0 6-4 11-8 15H13C8 39 5 34 5 28z" fill="#d59645"/>
-<path d="M15 20c4-8 12-11 18-11M31 12c5 1 9 4 12 10" fill="none"/><path d="M18 29c4 2 15 2 20-1" fill="none"/>
-</g>
-<g transform="translate(86,8)">
-<circle cx="18" cy="18" r="16" fill="#d8a45a"/><circle cx="12" cy="14" r="2.2" fill="#6a4428"/><circle cx="23" cy="11" r="2" fill="#6a4428"/><circle cx="25" cy="23" r="2.2" fill="#6a4428"/><circle cx="10" cy="24" r="2" fill="#6a4428"/>
-</g>
-<g transform="translate(146,10)">
-<rect x="0" y="8" rx="2" ry="2" width="28" height="16" fill="#f7d96d"/><path d="M0 8h28l4 4H4z" fill="#fff3b4"/>
-</g>
-<g transform="translate(205,5)">
-<path d="M8 28l8-20 8 20" fill="none"/><ellipse cx="16" cy="24" rx="13" ry="5" fill="#ccb089"/><path d="M16 5c6 0 10 5 10 11 0 10-10 12-10 18 0-6-10-8-10-18 0-6 4-11 10-11z" fill="#efe2c6"/>
-</g>
-<g transform="translate(255,14)">
-<path d="M0 18c5-14 20-18 30-10 7 5 7 17-1 23-10 7-23 4-29-6" fill="#d79345"/>
-<path d="M8 14c4-5 11-8 17-5" fill="none"/>
-</g>
-<g transform="translate(315,12)">
-<ellipse cx="16" cy="18" rx="18" ry="14" fill="#c98a43"/><path d="M4 18h24" fill="none"/><path d="M16 4v28" fill="none"/>
-</g>
-<g transform="translate(372,8)">
-<path d="M10 8c10-8 24-3 28 8 4 10-4 18-14 22-7-2-16-9-18-17-2-6 0-10 4-13z" fill="#d99749"/>
-<path d="M18 10c0 5-3 9-8 11M25 14c2 6 5 10 11 12" fill="none"/>
-</g>
-<g transform="translate(432,12)">
-<path d="M0 30c5-16 26-17 33-5 6 9-2 19-12 21-10 1-18-5-21-16z" fill="#d59645"/>
-<path d="M6 24c5-6 16-7 22-3" fill="none"/>
-</g>
-<g fill="#d6a54e" stroke="none">
-<path d="M72 15l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/>
-<path d="M292 76l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/>
-<circle cx="125" cy="74" r="2"/><circle cx="347" cy="20" r="1.8"/><circle cx="505" cy="18" r="2"/>
-</g>
-</g></svg>
-  </header>
+</header>
 <div class="layout">
 <div class="sidebar">
 <div class="card saved-card">
