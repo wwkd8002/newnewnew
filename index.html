@@ -295,18 +295,20 @@
   tr.checked-row td.name-cell, tr.checked-row td.orig { text-decoration: line-through; opacity: .5; }
   tr.checked-row td.result { opacity: .5; }
 
-  .saved-list {
-    display: flex; flex-direction: column; gap: 8px;
-    max-height: 70vh;
-    overflow-y: auto;
-    padding-bottom: 18px;
-    padding-right: 4px;
-  }
-.recipe-category-content {
-    max-height: 60vh;
-    overflow-y: auto;
-    padding-bottom: 18px;
-  }
+  .saved-list{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    max-height:70vh;
+    overflow-y:auto;
+    padding-bottom:18px;
+    padding-right:4px;
+}
+.recipe-category-content{
+    max-height:55vh;
+    overflow-y:auto;
+    padding-bottom:18px;
+}
 
   /* ★ เพิ่มใหม่: ปรับ scrollbar ให้เข้าธีมสีครีม/เขียวมะกอกของเว็บ แทนสกอลบาร์เทาๆ มาตรฐานของเบราว์เซอร์ */
   .saved-list, .recipe-category-content {
@@ -340,27 +342,10 @@
   }
 
   .layout{display:flex;gap:20px;align-items:flex-start}
-  .sidebar{
-    width:280px;
-    position:sticky;
-    top:15px;
-    align-self:flex-start;
-    max-height:calc(100vh - 30px);
-    overflow-y:auto;
-}
-.saved-card>.card{
-    max-height:none !important;
-    overflow:visible !important;
-}
-.saved-card details{
-    display:flex;
-    flex-direction:column;
-}
-.saved-card details>.card{
-    display:flex;
-    flex-direction:column;
-    max-height:calc(100vh - 90px);
-}
+  .sidebar{width:280px;position:sticky;top:15px}
+
+
+
 .saved-list{
     flex:1 1 auto;
     max-height:none !important;
@@ -374,7 +359,7 @@
   .saved-card details summary{cursor:pointer;font-family:var(--sans);font-weight:600;padding:6px 0;}
   @media (max-width:900px){
     .layout{flex-direction:column}
-    .sidebar{width:100%;position:static}
+    .sidebar{width:280px;position:sticky;top:15px}
   }
 
   /* ===== Choose a scale + Results after scaling: side by side on desktop (per user request) ===== */
