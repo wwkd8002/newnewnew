@@ -1546,12 +1546,47 @@ if(editRecipeUrlBtnEl){
   };
 }
 
+// ★ แก้ไข: เดิม autoResizeTextarea() จะ "ยุบกล่องให้เหลือ height:auto ก่อน แล้วค่อยวัดใหม่แล้วขยายกลับ"
+// ทุกครั้งที่พิมพ์ 1 ตัวอักษร ทำให้ความสูงทั้งหน้าเว็บยุบฮวบแล้วเด้งกลับซ้ำๆ ถ้าข้อความสั้นแทบไม่เห็นผล
+// แต่ถ้าข้อความยาวมาก การยุบ-เด้งแต่ละรอบจะมีขนาดใหญ่ขึ้นเห็นชัด ทำให้แถบเลื่อน (scrollbar) กระตุกตามที่เจอ
+// แก้โดยใช้ "กล่องเงา" (mirror) ที่มองไม่เห็น ซ่อนอยู่นอกจอ มาวัดความสูงที่ต้องการแทน โดยไม่ไปยุบกล่องจริง
+// ที่กำลังโฟกัส/พิมพ์อยู่เลย ทำให้ไม่มีการยุบ-เด้งเกิดขึ้นกับกล่องที่มองเห็นอีกต่อไป
+let __resizeMirror = null;
+function getResizeMirror(){
+    if(__resizeMirror) return __resizeMirror;
+    const mirror = document.createElement('textarea');
+    mirror.setAttribute('tabindex','-1');
+    mirror.setAttribute('aria-hidden','true');
+    mirror.style.position = 'absolute';
+    mirror.style.visibility = 'hidden';
+    mirror.style.top = '0';
+    mirror.style.left = '-9999px';
+    mirror.style.height = 'auto';
+    mirror.style.overflow = 'hidden';
+    mirror.style.whiteSpace = 'pre-wrap';
+    mirror.style.wordWrap = 'break-word';
+    document.body.appendChild(mirror);
+    __resizeMirror = mirror;
+    return mirror;
+}
+
 function autoResizeTextarea(el){
     if(!el) return;
     el.style.overflowY='hidden';
     el.style.resize='none';
-    el.style.height='auto';
-    el.style.height=(el.scrollHeight)+'px';
+    const mirror = getResizeMirror();
+    const cs = window.getComputedStyle(el);
+    mirror.style.width = cs.width;
+    mirror.style.font = cs.font;
+    mirror.style.lineHeight = cs.lineHeight;
+    mirror.style.padding = cs.padding;
+    mirror.style.border = cs.border;
+    mirror.style.boxSizing = cs.boxSizing;
+    mirror.value = el.value;
+    const needed = mirror.scrollHeight;
+    if (parseInt(el.style.height, 10) !== needed) {
+        el.style.height = needed + 'px';
+    }
 }
 
 function autoResizeAllTextareas(){
