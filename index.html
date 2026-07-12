@@ -1159,6 +1159,23 @@ document.getElementById('extractBtn').addEventListener('click', function(){
         }
     }
 
+    // ★ เพิ่มใหม่: รองรับกรณีต้นฉบับเขียนแบบ "ชื่อ ตามด้วยจำนวน+หน่วย" เช่น "baking soda 2 gram"
+    // (สลับตำแหน่งจากแบบปกติ "จำนวน+หน่วย ตามด้วยชื่อ" เช่น "2 gram baking soda")
+    // ทำงานเฉพาะตอนที่รูปแบบปกติด้านบน (amount-first) จับไม่ได้เท่านั้น ไม่กระทบการทำงานเดิมเลย
+    let nfAmt = null, nfUnit = null, nfName = null;
+    if (mainAmt === null) {
+        const nameFirstRegex = /^(.+?)\s+([\d\/\.]+)\s*(grams?|g|กรัม|oz|ounces?|ounce|ml|milliliters?|cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา|eggs?|egg|ฟอง)$/i;
+        const nfMatch = noParenLine.match(nameFirstRegex);
+        if (nfMatch) {
+            const checkAmt2 = parseAmount(nfMatch[2]);
+            if (!isNaN(checkAmt2)) {
+                nfName = nfMatch[1].trim();
+                nfAmt = nfMatch[2].trim();
+                nfUnit = nfMatch[3].toLowerCase();
+            }
+        }
+    }
+
     if (gramValue !== null) {
         amt = gramValue.trim();
         unit = 'g';
@@ -1167,6 +1184,10 @@ document.getElementById('extractBtn').addEventListener('click', function(){
         amt = mainAmt;
         unit = mainUnit;
         name = mainName;
+    } else if (nfAmt !== null) {
+        amt = nfAmt;
+        unit = nfUnit;
+        name = nfName;
     } else {
         const match = cleanLine.match(regex);
         if (match) {
