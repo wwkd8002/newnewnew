@@ -292,6 +292,8 @@
   /* ===== Ingredient checklist checkbox (tick off as you add each ingredient) ===== */
   th.check-col, td.check-col { width: 26px; padding-right: 0; padding-left: 4px; }
   .ing-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent-deep); vertical-align: middle; }
+  /* ★ เพิ่มใหม่: สไตล์สำหรับติ๊ก "เคยลองทำสูตรนี้แล้ว" ในรายการ Saved Recipes */
+  .tried-label { text-decoration: line-through; opacity: .55; }
   tr.checked-row td.name-cell, tr.checked-row td.orig { text-decoration: line-through; opacity: .5; }
   tr.checked-row td.result { opacity: .5; }
 
@@ -625,6 +627,7 @@ let lastTotalOrigGrams = null;
 let recipeOvenTempC = null;
 let editingKey = null;
 let checkedResults = new Set(); // เก็บ id ของวัตถุดิบที่ติ๊กว่าใส่ไปแล้ว (ในตาราง Results after scaling)
+let currentRecipeTried = false; // ★ เพิ่มใหม่: สถานะ "เคยลองทำแล้ว" ของสูตรที่กำลังเปิดอยู่ ป้องกันไม่ให้ Save Changes ไปเขียนทับค่านี้ทิ้ง
 
 function uid(){ return 'r'+Math.random().toString(36).slice(2,9); }
 function isSugarRow(row){ return SUGAR_CATEGORIES.includes(row.category); }
@@ -1317,7 +1320,8 @@ function currentRecipeData(){
     notes: document.getElementById('notesBox').value,
     ovenTempC: recipeOvenTempC,
     savedAt: new Date().toISOString(),
-    category: category // เพิ่มการบันทึกหมวดหมู่เข้าไปในข้อมูลสูตร
+    category: category, // เพิ่มการบันทึกหมวดหมู่เข้าไปในข้อมูลสูตร
+    tried: currentRecipeTried // ★ เพิ่มใหม่: เก็บสถานะ "เคยลองทำแล้ว" ไปพร้อมกับข้อมูลสูตร ไม่ให้หายตอน Save Changes
   };
 }
 
@@ -1390,7 +1394,36 @@ async function refreshSavedList(){
         item.className = 'saved-item';
         item.style.borderTop = '1px solid #f4f0ea';
         const label = key.replace(/^recipe:/,'').replace(/-\d+$/,'');
-        item.innerHTML = `<div><div>${label}</div></div>`;
+
+        // ★ เพิ่มใหม่: ช่องติ๊ก "เคยลองทำสูตรนี้แล้ว" — ติ๊กแล้วบันทึกลง cloud ทันที
+        // (ไม่ต้องกดเปิดสูตรแล้วกด Save Changes) ค่านี้จะถูกจำไว้ตลอด แม้รีเฟรชหน้าหรือเปิดเว็บใหม่
+        const nameLabel = document.createElement('span');
+        nameLabel.textContent = label;
+        if (data.tried) nameLabel.classList.add('tried-label');
+
+        const triedCheckbox = document.createElement('input');
+        triedCheckbox.type = 'checkbox';
+        triedCheckbox.className = 'ing-check';
+        triedCheckbox.checked = !!data.tried;
+        triedCheckbox.title = 'เคยลองทำสูตรนี้แล้ว';
+        triedCheckbox.onchange = async () => {
+          data.tried = triedCheckbox.checked;
+          nameLabel.classList.toggle('tried-label', triedCheckbox.checked);
+          try {
+            await safeStorage.set(key, JSON.stringify(data));
+          } catch(err) {
+            console.error('Failed to save tried status:', err);
+          }
+        };
+
+        const nameRow = document.createElement('div');
+        nameRow.style.display = 'flex';
+        nameRow.style.alignItems = 'center';
+        nameRow.style.gap = '8px';
+        nameRow.appendChild(triedCheckbox);
+        nameRow.appendChild(nameLabel);
+
+        item.appendChild(nameRow);
         
         const actions = document.createElement('div');
         actions.className = 'saved-actions';
@@ -1400,6 +1433,7 @@ async function refreshSavedList(){
         loadBtn.onclick = () => {
           editingKey = key;
           checkedResults.clear();
+          currentRecipeTried = !!data.tried;
           document.getElementById('saveChangesBtn').style.display = 'inline-block';
           document.getElementById('recipeNameInput').value = label;
           
@@ -1466,6 +1500,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
 
   try{
     const key = `recipe:${name}-${Date.now()}`;
+    currentRecipeTried = false; // ★ สูตรใหม่ที่เพิ่งเซฟ ให้เริ่มต้นเป็น "ยังไม่เคยทำ" เสมอ
     await safeStorage.set(key, JSON.stringify(currentRecipeData()));
     statusEl.textContent = `Saved "${name}".`;
     statusEl.className='status-msg ok';
@@ -1507,6 +1542,7 @@ document.getElementById("clearBtn").addEventListener("click",function(){
   document.getElementById("extractStatus").textContent="";
   recipeOvenTempC=null;
   editingKey=null;
+  currentRecipeTried=false;
   document.getElementById('saveChangesBtn').style.display='none';
   ingredients=[];
   overrideRowId=null;
