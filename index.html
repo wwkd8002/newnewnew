@@ -1423,7 +1423,19 @@ async function refreshSavedList(){
         nameRow.appendChild(triedCheckbox);
         nameRow.appendChild(nameLabel);
 
-        item.appendChild(nameRow);
+        // ★ เพิ่มใหม่: ห่อ nameRow ไว้ในกล่องเดียวกับคำใบ้ที่จะโชว์ตอนค้นเจอจากชื่อวัตถุดิบ
+        // (แยกจาก nameRow เพื่อไม่ให้ innerText ปนกับข้อความคำใบ้ตอนค้นหาครั้งถัดไป)
+        const infoBlock = document.createElement('div');
+        infoBlock.appendChild(nameRow);
+
+        item.appendChild(infoBlock);
+        item.dataset.recipeName = label.toLowerCase();
+
+        // เก็บชื่อวัตถุดิบทั้งหมดของสูตรนี้ไว้เป็น data attribute เพื่อให้ช่องค้นหา
+        // ด้านล่าง (filterSavedRecipes) สามารถค้นจากชื่อวัตถุดิบได้ด้วย ไม่ใช่แค่ชื่อสูตรอย่างเดียว
+        item.dataset.ingredients = (data.ingredients || [])
+          .map(ing => (ing && ing.name ? ing.name.toLowerCase() : ''))
+          .join(' | ');
         
         const actions = document.createElement('div');
         actions.className = 'saved-actions';
@@ -1649,8 +1661,31 @@ function filterSavedRecipes(){
     const arrow = group.querySelector('.toggle-arrow');
     
     items.forEach(item => {
-      const text = item.firstElementChild?.innerText.toLowerCase() || '';
-      if(text.includes(q)){
+      const nameText = item.dataset.recipeName || '';
+      const ingredientsText = item.dataset.ingredients || '';
+
+      // ★ แก้ไข: เดิมค้นหาได้แค่จากชื่อสูตรอย่างเดียว ตอนนี้ค้นจากชื่อวัตถุดิบในสูตรได้ด้วย
+      // เช่น พิมพ์ "espresso" หรือ "heavy cream" จะเจอสูตรที่มีวัตถุดิบนั้นอยู่ แม้ชื่อสูตรจะไม่ตรงกันเลยก็ตาม
+      const nameMatches = nameText.includes(q);
+      const ingredientMatches = q !== '' && ingredientsText.includes(q);
+
+      // แสดงคำใบ้เล็กๆ ใต้ชื่อสูตร บอกว่าเจอเพราะมีวัตถุดิบนี้อยู่ (เฉพาะตอนที่ชื่อสูตรเองไม่ตรง)
+      let hintEl = item.querySelector('.ingredient-match-hint');
+      if(ingredientMatches && !nameMatches){
+        if(!hintEl){
+          hintEl = document.createElement('div');
+          hintEl.className = 'ingredient-match-hint';
+          hintEl.style.cssText = 'font-size:11px; color:var(--ink-soft); margin-top:2px;';
+          item.firstElementChild.appendChild(hintEl);
+        }
+        const matchedIngredient = ingredientsText.split(' | ').find(n => n.includes(q)) || q;
+        hintEl.textContent = `🔎 มีวัตถุดิบ: ${matchedIngredient}`;
+        hintEl.style.display = 'block';
+      } else if(hintEl){
+        hintEl.style.display = 'none';
+      }
+
+      if(nameMatches || ingredientMatches){
         item.style.display = 'flex';
         visibleItemsInGroup++;
       } else {
