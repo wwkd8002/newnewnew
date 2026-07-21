@@ -1660,57 +1660,122 @@ document.addEventListener('input', (e)=>{
 
 function filterSavedRecipes(){
   const q = (document.getElementById('recipeSearch')?.value || '').toLowerCase().trim();
-  
-  document.querySelectorAll('#savedList .recipe-category-group').forEach(group => {
-    let visibleItemsInGroup = 0;
-    const items = group.querySelectorAll('.saved-item');
-    const content = group.querySelector('.recipe-category-content');
-    const arrow = group.querySelector('.toggle-arrow');
-    
-    items.forEach(item => {
-      const nameText = item.dataset.recipeName || '';
-      const ingredientsText = item.dataset.ingredients || '';
+  const listEl = document.getElementById('savedList');
+  if(!listEl) return;
 
-      // ★ แก้ไข: เดิมค้นหาได้แค่จากชื่อสูตรอย่างเดียว ตอนนี้ค้นจากชื่อวัตถุดิบในสูตรได้ด้วย
-      // เช่น พิมพ์ "espresso" หรือ "heavy cream" จะเจอสูตรที่มีวัตถุดิบนั้นอยู่ แม้ชื่อสูตรจะไม่ตรงกันเลยก็ตาม
-      const nameMatches = nameText.includes(q);
-      const ingredientMatches = q !== '' && ingredientsText.includes(q);
+  // 1. ถ้าช่องค้นหาว่างเปล่า ให้คืนค่ากลับมาแสดงตามหมวดหมู่ (Folders) แบบเดิม
+  if (q === '') {
+    // ซ่อนกล่องค้นหาแบบแยก (ถ้ามี)
+    const searchResultsBox = document.getElementById('searchResultsGroup');
+    if(searchResultsBox) searchResultsBox.style.display = 'none';
 
-      // แสดงคำใบ้เล็กๆ ใต้ชื่อสูตร บอกว่าเจอเพราะมีวัตถุดิบนี้อยู่ (เฉพาะตอนที่ชื่อสูตรเองไม่ตรง)
-      let hintEl = item.querySelector('.ingredient-match-hint');
-      if(ingredientMatches && !nameMatches){
-        if(!hintEl){
-          hintEl = document.createElement('div');
-          hintEl.className = 'ingredient-match-hint';
-          hintEl.style.cssText = 'font-size:11px; color:var(--ink-soft); margin-top:2px;';
-          item.firstElementChild.appendChild(hintEl);
-        }
-        const matchedIngredient = ingredientsText.split(' | ').find(n => n.includes(q)) || q;
-        hintEl.textContent = `🔎 มีวัตถุดิบ: ${matchedIngredient}`;
-        hintEl.style.display = 'block';
-      } else if(hintEl){
-        hintEl.style.display = 'none';
-      }
-
-      if(nameMatches || ingredientMatches){
-        item.style.display = 'flex';
-        visibleItemsInGroup++;
-      } else {
-        item.style.display = 'none';
-      }
-    });
-
-    // ถ้าในกลุ่มมีสูตรที่ตรงกับคำค้นหา ให้แสดงโฟลเดอร์นั้นขึ้นมา และสั่งขยายออโต้
-    if(visibleItemsInGroup > 0 || q === ''){
+    // แสดงหมวดหมู่โฟลเดอร์ปกติทั้งหมด
+    document.querySelectorAll('#savedList .recipe-category-group').forEach(group => {
       group.style.display = 'block';
-      if (q !== '') {
-        content.style.display = 'block';
-        if(arrow) arrow.innerText = '▼';
+      const content = group.querySelector('.recipe-category-content');
+      const arrow = group.querySelector('.toggle-arrow');
+      if(content) content.style.display = 'block';
+      if(arrow) arrow.innerText = '▼';
+      
+      // คืนค่ารายการข้างในให้แสดงปกติ
+      group.querySelectorAll('.saved-item').forEach(item => {
+        item.style.display = 'flex';
+        const hintEl = item.querySelector('.ingredient-match-hint');
+        if(hintEl) hintEl.style.display = 'none';
+      });
+    });
+    return;
+  }
+
+  // 2. ซ่อนหมวดหมู่โฟลเดอร์ปกติชั่วคราวขณะกำลังค้นหา
+  document.querySelectorAll('#savedList .recipe-category-group').forEach(group => {
+    group.style.display = 'none';
+  });
+
+  // 3. เตรียมหรือสร้างกล่องแสดงผลค้นหาแบบแยก 2 กล่อง
+  let searchGroup = document.getElementById('searchResultsGroup');
+  if (!searchGroup) {
+    searchGroup = document.createElement('div');
+    searchGroup.id = 'searchResultsGroup';
+    listEl.appendChild(searchGroup);
+  }
+  searchGroup.style.display = 'block';
+  searchGroup.innerHTML = ''; // ล้างผลลัพธ์เก่า
+
+  // สร้างกล่องใส่ผลลัพธ์: ชื่อสูตร
+  const nameBox = document.createElement('div');
+  nameBox.style.cssText = 'margin-bottom:14px; border:1px solid var(--paper-line); border-radius:6px; background:#fff; padding:8px;';
+  nameBox.innerHTML = '<div style="font-weight:700; font-size:12px; color:var(--accent-deep); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">📖 ค้นเจอจาก "ชื่อสูตร"</div><div class="name-results-content" style="display:flex; flex-direction:column; gap:6px;"></div>';
+
+  // สร้างกล่องใส่ผลลัพธ์: วัตถุดิบ
+  const ingBox = document.createElement('div');
+  ingBox.style.cssText = 'margin-bottom:14px; border:1px solid var(--paper-line); border-radius:6px; background:#fff; padding:8px;';
+  ingBox.innerHTML = '<div style="font-weight:700; font-size:12px; color:var(--gold); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">🥗 ค้นเจอจาก "ชื่อวัตถุดิบ"</div><div class="ing-results-content" style="display:flex; flex-direction:column; gap:6px;"></div>';
+
+  const nameContent = nameBox.querySelector('.name-results-content');
+  const ingContent = ingBox.querySelector('.ing-results-content');
+
+  let nameMatchCount = 0;
+  let ingMatchCount = 0;
+
+  // 4. วนลูปตรวจเช็คสูตรอาหารทั้งหมด
+  document.querySelectorAll('#savedList .saved-item').forEach(item => {
+    const nameText = item.dataset.recipeName || '';
+    const ingredientsText = item.dataset.ingredients || '';
+
+    const nameMatches = nameText.includes(q);
+    const ingredientMatches = ingredientsText.includes(q);
+
+    // คัดลอก Node รายการมาแสดงในกล่องค้นหาเพื่อไม่ให้กระทบผังเดิม
+    const cloneItem = item.cloneNode(true);
+    cloneItem.style.display = 'flex';
+
+    // ผูก Event ให้ปุ่ม Open และ Delete ของกล่องสแกนใหม่ใช้งานได้ปกติ
+    const origOpenBtn = item.querySelector('.saved-actions .btn.secondary');
+    const cloneOpenBtn = cloneItem.querySelector('.saved-actions .btn.secondary');
+    if(origOpenBtn && cloneOpenBtn) cloneOpenBtn.onclick = origOpenBtn.onclick;
+
+    const origDelBtn = item.querySelector('.saved-actions .btn.danger');
+    const cloneDelBtn = cloneItem.querySelector('.saved-actions .btn.danger');
+    if(origDelBtn && cloneDelBtn) cloneDelBtn.onclick = origDelBtn.onclick;
+
+    const origCheckbox = item.querySelector('input[type="checkbox"]');
+    const cloneCheckbox = cloneItem.querySelector('input[type="checkbox"]');
+    if(origCheckbox && cloneCheckbox) {
+      cloneCheckbox.onchange = (e) => {
+        origCheckbox.checked = e.target.checked;
+        origCheckbox.dispatchEvent(new Event('change'));
+      };
+    }
+
+    if (nameMatches) {
+      nameContent.appendChild(cloneItem);
+      nameMatchCount++;
+    } else if (ingredientMatches) {
+      // แสดงคำใบ้วัตถุดิบที่เจอ
+      let hintEl = cloneItem.querySelector('.ingredient-match-hint');
+      if (!hintEl) {
+        hintEl = document.createElement('div');
+        hintEl.className = 'ingredient-match-hint';
+        hintEl.style.cssText = 'font-size:11px; color:var(--ink-soft); margin-top:2px;';
+        cloneItem.firstElementChild.appendChild(hintEl);
       }
-    } else {
-      group.style.display = 'none';
+      const matchedIngredient = ingredientsText.split(' | ').find(n => n.includes(q)) || q;
+      hintEl.textContent = `🔎 มีวัตถุดิบ: ${matchedIngredient}`;
+      hintEl.style.display = 'block';
+
+      ingContent.appendChild(cloneItem);
+      ingMatchCount++;
     }
   });
+
+  // 5. นำกล่องที่มีผลลัพธ์ไปแปะแสดงบนหน้าจอ
+  if (nameMatchCount > 0) searchGroup.appendChild(nameBox);
+  if (ingMatchCount > 0) searchGroup.appendChild(ingBox);
+
+  if (nameMatchCount === 0 && ingMatchCount === 0) {
+    searchGroup.innerHTML = '<div class="status-msg" style="text-align:center; padding:12px 0;">ไม่พบสูตรหรือวัตถุดิบที่ตรงกับคำค้นหาค่ะ</div>';
+  }
 }
 
 document.addEventListener('input', e=>{
