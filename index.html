@@ -347,7 +347,14 @@ box-sizing:border-box;
   }
 
   .layout{display:flex;gap:20px;align-items:flex-start}
-  .sidebar{width:280px;position:sticky;top:15px}
+  .sidebar {
+  width: 280px;
+  position: sticky;
+  top: 15px;
+  max-height: calc(100vh - 30px); /* ล็อกความสูงไม่ให้เกินหน้าจอ */
+  overflow-y: auto;               /* ให้เลื่อน Scrollbar เฉพาะในช่องซ้ายได้ */
+  padding-right: 4px;             /* เว้นระยะเล็กน้อยไม่ให้เลื่อนทับเนื้อหา */
+}
 
 
 
