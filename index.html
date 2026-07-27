@@ -251,6 +251,7 @@
 
   .result-sugar-select {
     margin-top: 4px;
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   }
   .result-sugar-select select.mini-select {
     font-family: var(--sans); font-size: 11.5px; font-weight: 600;
@@ -259,6 +260,12 @@
     max-width: 100%;
   }
   .result-sugar-select select.mini-select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .result-sugar-select input.mini-custom-input {
+    width: 52px; font-family: var(--sans); font-size: 11.5px; font-weight: 600;
+    padding: 2px 6px; border-radius: 10px; border: 1px solid var(--gold);
+    background: #fff8ea; color: var(--ink);
+  }
+  .result-sugar-select input.mini-custom-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
   .add-row-btn {
     margin-top: 6px; font-family: var(--sans); font-size: 13.5px; font-weight: 600;
@@ -949,6 +956,18 @@ function GrandmaScale(){
 
 function renderResults(){
   const body = document.getElementById('resultsBody');
+
+  const activeEl = document.activeElement;
+  let focusRestore = null;
+  if(activeEl && body.contains(activeEl) && activeEl.dataset && activeEl.dataset.rowId){
+    focusRestore = {
+      rowId: activeEl.dataset.rowId,
+      role: activeEl.dataset.role,
+      selectionStart: (typeof activeEl.selectionStart === 'number') ? activeEl.selectionStart : null,
+      selectionEnd: (typeof activeEl.selectionEnd === 'number') ? activeEl.selectionEnd : null
+    };
+  }
+
   body.innerHTML='';
   const emptyMsg = document.getElementById('emptyMsg');
 
@@ -1017,23 +1036,53 @@ function renderResults(){
       sugarSelectWrap.className = 'result-sugar-select';
       const sel = document.createElement('select');
       sel.className = 'mini-select';
+      sel.dataset.rowId = row.id; sel.dataset.role = 'sugar-select';
       const currentRed = parseFloat(row.sugarReduction)||0;
-      const opts = SUGAR_REDUCTION_PRESETS.slice();
-      if(!opts.includes(currentRed)) opts.push(currentRed);
-      opts.sort((a,b)=>a-b);
-      opts.forEach(p=>{
+      const isCustom = !SUGAR_REDUCTION_PRESETS.includes(currentRed);
+
+      SUGAR_REDUCTION_PRESETS.forEach(p=>{
         const opt = document.createElement('option');
         opt.value = p;
         opt.textContent = p===0 ? 'No reduction' : `−${p}% sugar`;
-        if(p===currentRed) opt.selected = true;
+        if(!isCustom && p===currentRed) opt.selected = true;
         sel.appendChild(opt);
       });
+      const customOpt = document.createElement('option');
+      customOpt.value = 'custom';
+      customOpt.textContent = 'Custom %…';
+      if(isCustom) customOpt.selected = true;
+      sel.appendChild(customOpt);
+
+      const customInput = document.createElement('input');
+      customInput.type = 'number'; customInput.min='0'; customInput.max='95'; customInput.step='any';
+      customInput.className = 'mini-custom-input';
+      customInput.dataset.rowId = row.id; customInput.dataset.role = 'sugar-custom';
+      customInput.placeholder = '%';
+      customInput.value = isCustom ? currentRed : '';
+      customInput.style.display = isCustom ? 'inline-block' : 'none';
+
       sel.onchange = (e)=>{
-        row.sugarReduction = parseFloat(e.target.value);
-        renderRows();
-        renderResults();
+        if(e.target.value === 'custom'){
+          customInput.style.display = 'inline-block';
+          customInput.focus();
+        } else {
+          customInput.style.display = 'none';
+          row.sugarReduction = parseFloat(e.target.value);
+          renderRows();
+          renderResults();
+        }
       };
+      customInput.oninput = (e)=>{
+        const v = parseFloat(e.target.value);
+        if(!isNaN(v)){
+          row.sugarReduction = v;
+          renderRows();
+          renderResults();
+        }
+      };
+
       sugarSelectWrap.appendChild(sel);
+      sugarSelectWrap.appendChild(customInput);
       tdName.appendChild(sugarSelectWrap);
     }
 
@@ -1045,6 +1094,7 @@ function renderResults(){
     tdResult.className='num result';
     const input = document.createElement('input');
     input.type='number'; input.step='any'; input.className='target-input';
+    input.dataset.rowId = row.id; input.dataset.role = 'scaled-target';
     input.value = round1(scaled);
     input.oninput=(e)=>{
       overrideRowId = row.id;
@@ -1079,6 +1129,16 @@ function renderResults(){
 
   lastTotalOrigGrams = totalOrig;
   renderPills();
+
+  if(focusRestore){
+    const toFocus = body.querySelector(`[data-row-id="${focusRestore.rowId}"][data-role="${focusRestore.role}"]`);
+    if(toFocus){
+      toFocus.focus();
+      if(focusRestore.selectionStart!=null && toFocus.setSelectionRange){
+        try{ toFocus.setSelectionRange(focusRestore.selectionStart, focusRestore.selectionEnd); }catch(e){}
+      }
+    }
+  }
 }
 
 document.getElementById('extractBtn').addEventListener('click', function(){
