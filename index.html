@@ -249,6 +249,17 @@
   .mini-pill:hover:not(.active) { border-color: var(--gold); }
   .sub-row input.mini-num { width: 56px; padding: 4px 6px; font-size: 12.5px; }
 
+  .result-sugar-select {
+    margin-top: 4px;
+  }
+  .result-sugar-select select.mini-select {
+    font-family: var(--sans); font-size: 11.5px; font-weight: 600;
+    padding: 2px 6px; border-radius: 10px; border: 1px solid var(--gold);
+    background: #fff; color: var(--accent-deep); cursor: pointer;
+    max-width: 100%;
+  }
+  .result-sugar-select select.mini-select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
   .add-row-btn {
     margin-top: 6px; font-family: var(--sans); font-size: 13.5px; font-weight: 600;
     background: none; border: 1.5px dashed var(--accent); color: var(--accent-deep);
@@ -997,7 +1008,34 @@ function renderResults(){
 
     const tdName = document.createElement('td');
     tdName.className = 'name-cell';
-    tdName.textContent = row.name + (isSugarRow(row) && parseFloat(row.sugarReduction)>0 ? ` (−${row.sugarReduction}% sugar)` : '');
+    const nameText = document.createElement('div');
+    nameText.textContent = row.name;
+    tdName.appendChild(nameText);
+
+    if(isSugarRow(row)){
+      const sugarSelectWrap = document.createElement('div');
+      sugarSelectWrap.className = 'result-sugar-select';
+      const sel = document.createElement('select');
+      sel.className = 'mini-select';
+      const currentRed = parseFloat(row.sugarReduction)||0;
+      const opts = SUGAR_REDUCTION_PRESETS.slice();
+      if(!opts.includes(currentRed)) opts.push(currentRed);
+      opts.sort((a,b)=>a-b);
+      opts.forEach(p=>{
+        const opt = document.createElement('option');
+        opt.value = p;
+        opt.textContent = p===0 ? 'No reduction' : `−${p}% sugar`;
+        if(p===currentRed) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.onchange = (e)=>{
+        row.sugarReduction = parseFloat(e.target.value);
+        renderRows();
+        renderResults();
+      };
+      sugarSelectWrap.appendChild(sel);
+      tdName.appendChild(sugarSelectWrap);
+    }
 
     const tdOrig = document.createElement('td');
     tdOrig.className='num orig';
