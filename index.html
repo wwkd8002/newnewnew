@@ -1631,7 +1631,13 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     
     // เพิ่มบรรทัดนี้เพื่อล้างช่อง Category หลังจากกดเซฟเสร็จแล้ว
     if(document.getElementById('recipeCategory')) document.getElementById('recipeCategory').value = '';
-    
+
+    // ★ แก้ไข: หลังเซฟสูตรใหม่เสร็จ ให้ถือว่ากำลัง "เปิดดู/แก้ไข" สูตรนี้อยู่ทันที
+    // (เหมือนกับตอนกด Open) เพื่อให้แก้ไขต่อแล้วกด "Save Changes" ได้เลย
+    // โดยไม่ต้องรีเฟรชหน้าแล้วไปกดหาสูตร > Open ใหม่
+    editingKey = key;
+    document.getElementById('saveChangesBtn').style.display = 'inline-block';
+
     refreshSavedList();
   }catch(err){
     statusEl.textContent = 'Save failed.';
