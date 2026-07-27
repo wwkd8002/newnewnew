@@ -491,7 +491,7 @@ box-sizing:border-box;
 <div class="layout">
 <div class="sidebar">
 <div class="card saved-card">
-<details open>
+<details>
 <summary>📁 Saved Recipes</summary>
 <div class="card">
    <h2>Save recipe</h2>
@@ -652,6 +652,7 @@ let lastTotalOrigGrams = null;
 let recipeOvenTempC = null;
 let editingKey = null;
 let checkedResults = new Set(); // เก็บ id ของวัตถุดิบที่ติ๊กว่าใส่ไปแล้ว (ในตาราง Results after scaling)
+let openCategories = new Set(); // เก็บชื่อหมวดหมู่ที่ผู้ใช้กดขยายไว้ (ค่าเริ่มต้น = ปิดทั้งหมด)
 let currentRecipeTried = false; // ★ เพิ่มใหม่: สถานะ "เคยลองทำแล้ว" ของสูตรที่กำลังเปิดอยู่ ป้องกันไม่ให้ Save Changes ไปเขียนทับค่านี้ทิ้ง
 
 function uid(){ return 'r'+Math.random().toString(36).slice(2,9); }
@@ -1481,12 +1482,14 @@ async function refreshSavedList(){
       const header = document.createElement('div');
       header.className = 'recipe-category-header';
       header.style.cssText = "background: #f4f0ea; padding: 10px 12px; cursor: pointer; font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center; font-family: 'Fraunces', serif; color: var(--ink);";
-      header.innerHTML = `<span>📁 ${categoryName} (${groupedRecipes[categoryName].length})</span> <span class="toggle-arrow" style="font-size:11px;">▼</span>`;
+      const isOpen = openCategories.has(categoryName);
+      header.innerHTML = `<span>📁 ${categoryName} (${groupedRecipes[categoryName].length})</span> <span class="toggle-arrow" style="font-size:11px;">${isOpen ? '▼' : '►'}</span>`;
 
       // กล่องใส่รายชื่อสูตรในหมวดนี้
       const contentContainer = document.createElement('div');
       contentContainer.className = 'recipe-category-content';
       contentContainer.style.background = '#fff';
+      contentContainer.style.display = isOpen ? 'block' : 'none';
       // ★ แก้ไข: เดิมมี inline style กำหนด max-height:200px ทับ class CSS (.recipe-category-content
       // ที่กำหนดไว้ 250px) ทำให้ค่าที่ใช้จริงมาจาก 2 ที่ปนกัน และถ้าลืมใส่ inline style ตรงนี้ในโค้ด
       // จุดอื่นจะได้ค่าไม่เท่ากัน ตอนนี้ลบ inline style ออก ให้ทุกกล่องหมวดหมู่ (ทั้งที่มีอยู่และที่จะ
@@ -1591,9 +1594,11 @@ async function refreshSavedList(){
         if(contentContainer.style.display === 'none'){
           contentContainer.style.display = 'block';
           header.querySelector('.toggle-arrow').innerText = '▼';
+          openCategories.add(categoryName);
         } else {
           contentContainer.style.display = 'none';
           header.querySelector('.toggle-arrow').innerText = '►';
+          openCategories.delete(categoryName);
         }
       });
 
@@ -1772,8 +1777,10 @@ function filterSavedRecipes(){
       group.style.display = 'block';
       const content = group.querySelector('.recipe-category-content');
       const arrow = group.querySelector('.toggle-arrow');
-      if(content) content.style.display = 'block';
-      if(arrow) arrow.innerText = '▼';
+      const catName = group.querySelector('.recipe-category-header span')?.textContent?.replace(/^📁\s*/, '').replace(/\s*\(\d+\)\s*$/, '');
+      const shouldBeOpen = catName ? openCategories.has(catName) : false;
+      if(content) content.style.display = shouldBeOpen ? 'block' : 'none';
+      if(arrow) arrow.innerText = shouldBeOpen ? '▼' : '►';
       
       // คืนค่ารายการข้างในให้แสดงปกติ
       group.querySelectorAll('.saved-item').forEach(item => {
