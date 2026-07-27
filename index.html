@@ -1538,6 +1538,7 @@ async function refreshSavedList(){
 
         item.appendChild(infoBlock);
         item.dataset.recipeName = label.toLowerCase();
+        item.dataset.category = categoryName;
 
         // เก็บชื่อวัตถุดิบทั้งหมดของสูตรนี้ไว้เป็น data attribute เพื่อให้ช่องค้นหา
         // ด้านล่าง (filterSavedRecipes) สามารถค้นจากชื่อวัตถุดิบได้ด้วย ไม่ใช่แค่ชื่อสูตรอย่างเดียว
@@ -1761,6 +1762,19 @@ document.addEventListener('input', (e)=>{
     }
 });
 
+function addCategoryHint(cloneItem, categoryName){
+  if(!categoryName) return;
+  let catEl = cloneItem.querySelector('.category-match-hint');
+  if (!catEl) {
+    catEl = document.createElement('div');
+    catEl.className = 'category-match-hint';
+    catEl.style.cssText = 'font-size:11px; color:var(--gold); margin-top:2px; font-weight:600;';
+    cloneItem.firstElementChild.appendChild(catEl);
+  }
+  catEl.textContent = `📁 หมวดหมู่: ${categoryName}`;
+  catEl.style.display = 'block';
+}
+
 function filterSavedRecipes(){
   const q = (document.getElementById('recipeSearch')?.value || '').toLowerCase().trim();
   const listEl = document.getElementById('savedList');
@@ -1854,6 +1868,7 @@ function filterSavedRecipes(){
     }
 
     if (nameMatches) {
+      addCategoryHint(cloneItem, item.dataset.category);
       nameContent.appendChild(cloneItem);
       nameMatchCount++;
     } else if (ingredientMatches) {
@@ -1869,6 +1884,7 @@ function filterSavedRecipes(){
       hintEl.textContent = `🔎 มีวัตถุดิบ: ${matchedIngredient}`;
       hintEl.style.display = 'block';
 
+      addCategoryHint(cloneItem, item.dataset.category);
       ingContent.appendChild(cloneItem);
       ingMatchCount++;
     }
