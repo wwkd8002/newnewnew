@@ -1990,7 +1990,26 @@ document.addEventListener('DOMContentLoaded',function(){
       if(tr.classList.contains('warn-row')||tr.classList.contains('total-row')) return;
       const tds=tr.querySelectorAll('td');
       if(tds.length>=4){
-         const name=tds[1].innerText;
+         const tdName = tds[1];
+
+         // ★ แก้ไข: เดิมใช้ tdName.innerText ซึ่งดึงข้อความของ <select> ลดน้ำตาลติดมาด้วยทั้งหมด
+         // (เช่น "No reduction −10% sugar −15% sugar ...") ตอนพิมพ์/ส่งออก PDF
+         // ตอนนี้ดึงเฉพาะชื่อวัตถุดิบจาก div แรกของช่อง แล้วค่อยต่อท้ายด้วย % ที่ลดจริง (ถ้ามี) เท่านั้น
+         const nameDiv = tdName.querySelector('div');
+         let name = nameDiv ? nameDiv.textContent : tdName.innerText;
+
+         const sugarSelect = tdName.querySelector('select[data-role="sugar-select"]');
+         if(sugarSelect){
+           let redVal = null;
+           if(sugarSelect.value === 'custom'){
+             const customInput = tdName.querySelector('input[data-role="sugar-custom"]');
+             redVal = customInput ? parseFloat(customInput.value) : null;
+           } else {
+             redVal = parseFloat(sugarSelect.value);
+           }
+           if(redVal){ name += ` (−${redVal}% sugar)`; } // ไม่ลดเลย (0 หรือไม่มีค่า) จะไม่ต่อท้ายอะไรเพิ่ม
+         }
+
          const inp=tds[3].querySelector('input');
          const val=inp?inp.value:tds[3].innerText;
          html+='<tr><td>'+name+'</td><td style="text-align:right">'+val+'</td></tr>';
