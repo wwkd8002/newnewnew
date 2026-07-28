@@ -1545,6 +1545,10 @@ async function refreshSavedList(){
         item.dataset.ingredients = (data.ingredients || [])
           .map(ing => (ing && ing.name ? ing.name.toLowerCase() : ''))
           .join(' | ');
+
+        // ★ เพิ่มใหม่: เก็บลิงก์เว็บไซต์ต้นฉบับของสูตรไว้เป็น data attribute ด้วย
+        // เพื่อให้ช่องค้นหาด้านล่าง (filterSavedRecipes) ค้นเจอจากคำที่อยู่ในลิงก์ได้เช่นกัน
+        item.dataset.recipeUrl = (data.recipeUrl || '').toLowerCase();
         
         const actions = document.createElement('div');
         actions.className = 'saved-actions';
@@ -1837,19 +1841,28 @@ function filterSavedRecipes(){
   ingBox.style.cssText = 'margin-bottom:14px; border:1px solid var(--paper-line); border-radius:6px; background:#fff; padding:8px;';
   ingBox.innerHTML = '<div style="font-weight:700; font-size:12px; color:var(--gold); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">🥗 ค้นเจอจาก "ชื่อวัตถุดิบ"</div><div class="ing-results-content" style="display:flex; flex-direction:column; gap:6px;"></div>';
 
+  // ★ เพิ่มใหม่: สร้างกล่องใส่ผลลัพธ์: ลิงก์เว็บไซต์ต้นฉบับ
+  const urlBox = document.createElement('div');
+  urlBox.style.cssText = 'margin-bottom:14px; border:1px solid var(--paper-line); border-radius:6px; background:#fff; padding:8px;';
+  urlBox.innerHTML = '<div style="font-weight:700; font-size:12px; color:var(--accent-deep); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">🔗 ค้นเจอจาก "ลิงก์เว็บไซต์"</div><div class="url-results-content" style="display:flex; flex-direction:column; gap:6px;"></div>';
+
   const nameContent = nameBox.querySelector('.name-results-content');
   const ingContent = ingBox.querySelector('.ing-results-content');
+  const urlContent = urlBox.querySelector('.url-results-content');
 
   let nameMatchCount = 0;
   let ingMatchCount = 0;
+  let urlMatchCount = 0;
 
   // 4. วนลูปตรวจเช็คสูตรอาหารทั้งหมด
   document.querySelectorAll('#savedList .saved-item').forEach(item => {
     const nameText = item.dataset.recipeName || '';
     const ingredientsText = item.dataset.ingredients || '';
+    const urlText = item.dataset.recipeUrl || '';
 
     const nameMatches = nameText.includes(q);
     const ingredientMatches = ingredientsText.includes(q);
+    const urlMatches = urlText.includes(q);
 
     // คัดลอก Node รายการมาแสดงในกล่องค้นหาเพื่อไม่ให้กระทบผังเดิม
     const cloneItem = item.cloneNode(true);
@@ -1893,14 +1906,30 @@ function filterSavedRecipes(){
       addCategoryHint(cloneItem, item.dataset.category);
       ingContent.appendChild(cloneItem);
       ingMatchCount++;
+    } else if (urlMatches) {
+      // ★ เพิ่มใหม่: แสดงคำใบ้ลิงก์เว็บไซต์ที่เจอคำค้นหา
+      let hintEl = cloneItem.querySelector('.ingredient-match-hint');
+      if (!hintEl) {
+        hintEl = document.createElement('div');
+        hintEl.className = 'ingredient-match-hint';
+        hintEl.style.cssText = 'font-size:11px; color:var(--ink-soft); margin-top:2px; word-break:break-all;';
+        cloneItem.firstElementChild.appendChild(hintEl);
+      }
+      hintEl.textContent = `🔎 มีในลิงก์: ${urlText}`;
+      hintEl.style.display = 'block';
+
+      addCategoryHint(cloneItem, item.dataset.category);
+      urlContent.appendChild(cloneItem);
+      urlMatchCount++;
     }
   });
 
   // 5. นำกล่องที่มีผลลัพธ์ไปแปะแสดงบนหน้าจอ
   if (nameMatchCount > 0) searchGroup.appendChild(nameBox);
   if (ingMatchCount > 0) searchGroup.appendChild(ingBox);
+  if (urlMatchCount > 0) searchGroup.appendChild(urlBox);
 
-  if (nameMatchCount === 0 && ingMatchCount === 0) {
+  if (nameMatchCount === 0 && ingMatchCount === 0 && urlMatchCount === 0) {
     searchGroup.innerHTML = '<div class="status-msg" style="text-align:center; padding:12px 0;">ไม่พบสูตรหรือวัตถุดิบที่ตรงกับคำค้นหาค่ะ</div>';
   }
 }
