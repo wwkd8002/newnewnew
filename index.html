@@ -1864,33 +1864,44 @@ function filterSavedRecipes(){
     const ingredientMatches = ingredientsText.includes(q);
     const urlMatches = urlText.includes(q);
 
-    // คัดลอก Node รายการมาแสดงในกล่องค้นหาเพื่อไม่ให้กระทบผังเดิม
-    const cloneItem = item.cloneNode(true);
-    cloneItem.style.display = 'flex';
+    // ฟังก์ชันช่วยคัดลอก Node รายการมาใส่ในกล่องค้นหา พร้อมผูก Event ปุ่ม Open/Delete/checkbox
+    // ให้ใช้งานได้ปกติ (แยกออกมาเพื่อเรียกซ้ำได้หลายครั้ง เผื่อสูตรเดียวเข้าเงื่อนไขมากกว่า 1 กล่อง
+    // เช่น ชื่อสูตรตรงกับคำค้นหา และลิงก์เว็บไซต์ก็มีคำนั้นด้วย)
+    function makeCloneItem(){
+      const cloneItem = item.cloneNode(true);
+      cloneItem.style.display = 'flex';
 
-    // ผูก Event ให้ปุ่ม Open และ Delete ของกล่องสแกนใหม่ใช้งานได้ปกติ
-    const origOpenBtn = item.querySelector('.saved-actions .btn.secondary');
-    const cloneOpenBtn = cloneItem.querySelector('.saved-actions .btn.secondary');
-    if(origOpenBtn && cloneOpenBtn) cloneOpenBtn.onclick = origOpenBtn.onclick;
+      const origOpenBtn = item.querySelector('.saved-actions .btn.secondary');
+      const cloneOpenBtn = cloneItem.querySelector('.saved-actions .btn.secondary');
+      if(origOpenBtn && cloneOpenBtn) cloneOpenBtn.onclick = origOpenBtn.onclick;
 
-    const origDelBtn = item.querySelector('.saved-actions .btn.danger');
-    const cloneDelBtn = cloneItem.querySelector('.saved-actions .btn.danger');
-    if(origDelBtn && cloneDelBtn) cloneDelBtn.onclick = origDelBtn.onclick;
+      const origDelBtn = item.querySelector('.saved-actions .btn.danger');
+      const cloneDelBtn = cloneItem.querySelector('.saved-actions .btn.danger');
+      if(origDelBtn && cloneDelBtn) cloneDelBtn.onclick = origDelBtn.onclick;
 
-    const origCheckbox = item.querySelector('input[type="checkbox"]');
-    const cloneCheckbox = cloneItem.querySelector('input[type="checkbox"]');
-    if(origCheckbox && cloneCheckbox) {
-      cloneCheckbox.onchange = (e) => {
-        origCheckbox.checked = e.target.checked;
-        origCheckbox.dispatchEvent(new Event('change'));
-      };
+      const origCheckbox = item.querySelector('input[type="checkbox"]');
+      const cloneCheckbox = cloneItem.querySelector('input[type="checkbox"]');
+      if(origCheckbox && cloneCheckbox) {
+        cloneCheckbox.onchange = (e) => {
+          origCheckbox.checked = e.target.checked;
+          origCheckbox.dispatchEvent(new Event('change'));
+        };
+      }
+      return cloneItem;
     }
 
+    // ★ แก้ไข: เดิมใช้ if/else if ทำให้เช็คแค่เงื่อนไขแรกที่ตรงแล้วหยุด (พอชื่อสูตรตรงกับคำค้นหา
+    // จะไม่เช็คลิงก์เว็บไซต์ต่อเลย) เปลี่ยนเป็นเช็คทีละเงื่อนไขแยกจากกัน สูตรเดียวจึงไปโผล่ได้
+    // มากกว่า 1 กล่องผลลัพธ์ ถ้าเข้าเงื่อนไขมากกว่าหนึ่งอย่าง
     if (nameMatches) {
+      const cloneItem = makeCloneItem();
       addCategoryHint(cloneItem, item.dataset.category);
       nameContent.appendChild(cloneItem);
       nameMatchCount++;
-    } else if (ingredientMatches) {
+    }
+
+    if (ingredientMatches) {
+      const cloneItem = makeCloneItem();
       // แสดงคำใบ้วัตถุดิบที่เจอ
       let hintEl = cloneItem.querySelector('.ingredient-match-hint');
       if (!hintEl) {
@@ -1906,7 +1917,10 @@ function filterSavedRecipes(){
       addCategoryHint(cloneItem, item.dataset.category);
       ingContent.appendChild(cloneItem);
       ingMatchCount++;
-    } else if (urlMatches) {
+    }
+
+    if (urlMatches) {
+      const cloneItem = makeCloneItem();
       // ★ เพิ่มใหม่: แสดงคำใบ้ลิงก์เว็บไซต์ที่เจอคำค้นหา
       let hintEl = cloneItem.querySelector('.ingredient-match-hint');
       if (!hintEl) {
