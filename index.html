@@ -402,11 +402,42 @@ box-sizing:border-box;
 
   .saved-search{
     width:100%;
-    padding:8px 10px;
+    padding:8px 32px 8px 10px;
     margin:8px 0 12px;
     border:1px solid var(--paper-line);
     border-radius:6px;
     font-family:var(--sans);
+    box-sizing:border-box;
+  }
+
+  .search-wrap{
+    position:relative;
+  }
+  .search-wrap .saved-search{
+    margin:8px 0 12px;
+  }
+  .search-clear-btn{
+    position:absolute;
+    right:8px;
+    top:50%;
+    transform:translateY(-50%);
+    margin-top:-2px;
+    width:20px;
+    height:20px;
+    border:none;
+    background:var(--paper-line);
+    color:#fff;
+    border-radius:50%;
+    font-size:13px;
+    line-height:1;
+    cursor:pointer;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+  }
+  .search-clear-btn:hover{
+    background:var(--accent-deep, #8a6d3b);
   }
 
 @media print{
@@ -511,7 +542,10 @@ box-sizing:border-box;
       <button class="btn secondary" id="saveChangesBtn" style="display:none;">💾 Save Changes</button>
     </div>
     <div id="saveStatus" class="status-msg"></div>
-    <input id="recipeSearch" class="saved-search" type="text" placeholder="🔍 Search recipe...">
+    <div class="search-wrap">
+      <input id="recipeSearch" class="saved-search" type="text" placeholder="🔍 Search recipe...">
+      <button type="button" id="recipeSearchClearBtn" class="search-clear-btn" aria-label="ล้างคำค้นหา">✕</button>
+    </div>
     <div id="savedList" class="saved-list" style="margin-top:12px;"></div>
   </div>
 </details>
@@ -1948,9 +1982,30 @@ function filterSavedRecipes(){
   }
 }
 
+function updateSearchClearBtnVisibility(){
+  const input = document.getElementById('recipeSearch');
+  const clearBtn = document.getElementById('recipeSearchClearBtn');
+  if(!input || !clearBtn) return;
+  clearBtn.style.display = input.value.length > 0 ? 'flex' : 'none';
+}
+
 document.addEventListener('input', e=>{
-  if(e.target && e.target.id==='recipeSearch') filterSavedRecipes();
+  if(e.target && e.target.id==='recipeSearch'){
+    filterSavedRecipes();
+    updateSearchClearBtnVisibility();
+  }
 });
+
+document.getElementById('recipeSearchClearBtn')?.addEventListener('click', ()=>{
+  const input = document.getElementById('recipeSearch');
+  if(!input) return;
+  input.value = '';
+  filterSavedRecipes();
+  updateSearchClearBtnVisibility();
+  input.focus();
+});
+
+updateSearchClearBtnVisibility();
 
 // เริ่มต้นแถวเริ่มต้นของวัตถุดิบตัวอย่าง
 addRow({name:'All-purpose flour', category:'All-purpose flour', amount:300, unit:'g'});
