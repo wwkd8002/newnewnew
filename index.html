@@ -1517,43 +1517,135 @@ async function refreshSavedList(){
       header.className = 'recipe-category-header';
       header.style.cssText = "background: #f4f0ea; padding: 10px 12px; cursor: pointer; font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center; font-family: 'Fraunces', serif; color: var(--ink);";
       const isOpen = openCategories.has(categoryName);
-      header.innerHTML = `<span>📁 ${categoryName} (${groupedRecipes[categoryName].length})</span>
-        <span style="display:flex; align-items:center; gap:10px;">
-          <button type="button" class="rename-folder-btn" title="แก้ไขชื่อโฟลเดอร์" style="background:none; border:none; cursor:pointer; font-size:14px; padding:2px 4px; line-height:1;">✏️</button>
-          <span class="toggle-arrow" style="font-size:11px;">${isOpen ? '▼' : '►'}</span>
-        </span>`;
 
-      // ★ เพิ่มใหม่: ปุ่มแก้ไขชื่อโฟลเดอร์ (แก้ category ของทุกสูตรในโฟลเดอร์นี้พร้อมกัน)
-      const renameBtn = header.querySelector('.rename-folder-btn');
-      if(renameBtn){
-        renameBtn.addEventListener('click', async (e) => {
-          e.stopPropagation(); // กันไม่ให้กระตุ้นการยุบ/ขยายโฟลเดอร์ไปด้วย
-          const newName = prompt('แก้ไขชื่อโฟลเดอร์:', categoryName);
-          if(newName === null) return; // ผู้ใช้กด Cancel
-          const trimmedName = newName.trim();
-          if(!trimmedName || trimmedName === categoryName) return;
+      // ใช้ตัวแปรนี้แทน categoryName เดิม เพราะ categoryName เป็น const ของ loop นี้
+      // เปลี่ยนค่าไม่ได้ แต่หลังเปลี่ยนชื่อโฟลเดอร์เราต้องอ้างอิงชื่อใหม่ต่อได้เรื่อยๆ
+      let currentCategoryName = categoryName;
+      // เก็บรายการสูตรของโฟลเดอร์นี้ไว้ตั้งแต่ตอนสร้าง เพื่อไม่ต้องเสียเวลาไปค้นหาใหม่ตอนกดบันทึกชื่อ
+      const itemsInGroup = groupedRecipes[categoryName];
 
-          renameBtn.disabled = true;
-          try {
-            // อัปเดต category ของสูตรทุกอันในโฟลเดอร์นี้ แล้วบันทึกกลับขึ้น cloud ทีละอัน
-            const itemsInGroup = groupedRecipes[categoryName];
-            for(const { key, data } of itemsInGroup){
-              data.category = trimmedName;
-              await safeStorage.set(key, JSON.stringify(data));
-            }
-            // ย้ายสถานะเปิด/ปิดไปผูกกับชื่อใหม่ แล้ววาดรายการใหม่ทั้งหมด
-            if(openCategories.has(categoryName)){
-              openCategories.delete(categoryName);
-              openCategories.add(trimmedName);
-            }
-            await refreshSavedList();
-          } catch(err){
-            console.error('Rename folder error:', err);
-            alert('เปลี่ยนชื่อโฟลเดอร์ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
-            renameBtn.disabled = false;
-          }
-        });
+      const leftContainer = document.createElement('span');
+      leftContainer.style.cssText = 'flex:1; min-width:0; display:flex; align-items:center;';
+
+      const nameDisplay = document.createElement('span');
+      nameDisplay.style.cssText = 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap;';
+      nameDisplay.textContent = `📁 ${currentCategoryName} (${itemsInGroup.length})`;
+
+      // ★ เพิ่มใหม่: ช่องพิมพ์แก้ไขชื่อโฟลเดอร์แบบ inline (ซ่อนไว้ก่อน โผล่มาตอนกดปุ่มดินสอ)
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.style.cssText = 'display:none; width:100%; font-family:var(--sans); font-size:14px; font-weight:600; padding:4px 8px; border:1.5px solid var(--accent); border-radius:5px; background:#fff; color:var(--ink);';
+
+      leftContainer.appendChild(nameDisplay);
+      leftContainer.appendChild(nameInput);
+
+      const rightControls = document.createElement('span');
+      rightControls.style.cssText = 'display:flex; align-items:center; gap:8px; flex-shrink:0; margin-left:10px;';
+
+      const renameBtn = document.createElement('button');
+      renameBtn.type = 'button';
+      renameBtn.title = 'แก้ไขชื่อโฟลเดอร์';
+      renameBtn.textContent = '✏️';
+      renameBtn.style.cssText = 'background:none; border:none; cursor:pointer; font-size:14px; padding:2px 4px; line-height:1;';
+
+      const saveNameBtn = document.createElement('button');
+      saveNameBtn.type = 'button';
+      saveNameBtn.title = 'บันทึกชื่อ';
+      saveNameBtn.textContent = '✓';
+      saveNameBtn.style.cssText = 'display:none; background:none; border:none; cursor:pointer; font-size:16px; padding:2px 4px; line-height:1; color:var(--accent-deep); font-weight:700;';
+
+      const cancelNameBtn = document.createElement('button');
+      cancelNameBtn.type = 'button';
+      cancelNameBtn.title = 'ยกเลิก';
+      cancelNameBtn.textContent = '✕';
+      cancelNameBtn.style.cssText = 'display:none; background:none; border:none; cursor:pointer; font-size:13px; padding:2px 4px; line-height:1; color:var(--ink-soft);';
+
+      const arrowSpan = document.createElement('span');
+      arrowSpan.className = 'toggle-arrow';
+      arrowSpan.style.fontSize = '11px';
+      arrowSpan.textContent = isOpen ? '▼' : '►';
+
+      rightControls.appendChild(renameBtn);
+      rightControls.appendChild(saveNameBtn);
+      rightControls.appendChild(cancelNameBtn);
+      rightControls.appendChild(arrowSpan);
+
+      header.appendChild(leftContainer);
+      header.appendChild(rightControls);
+
+      function enterEditMode(){
+        nameInput.value = currentCategoryName;
+        nameDisplay.style.display = 'none';
+        nameInput.style.display = 'block';
+        renameBtn.style.display = 'none';
+        saveNameBtn.style.display = 'inline-block';
+        cancelNameBtn.style.display = 'inline-block';
+        nameInput.focus();
+        nameInput.select();
       }
+
+      function exitEditMode(){
+        nameDisplay.style.display = 'block';
+        nameInput.style.display = 'none';
+        renameBtn.style.display = 'inline-block';
+        saveNameBtn.style.display = 'none';
+        cancelNameBtn.style.display = 'none';
+      }
+
+      async function commitRename(){
+        const newName = nameInput.value.trim();
+        if(!newName || newName === currentCategoryName){
+          exitEditMode();
+          return;
+        }
+
+        // ★ อัปเดตหน้าจอให้เห็นชื่อใหม่ทันที ไม่ต้องรอ cloud บันทึกเสร็จก่อน (ให้รู้สึกไวขึ้นมาก)
+        const oldName = currentCategoryName;
+        currentCategoryName = newName;
+        nameDisplay.textContent = `📁 ${newName} (${itemsInGroup.length})`;
+        exitEditMode();
+
+        if(openCategories.has(oldName)){
+          openCategories.delete(oldName);
+          openCategories.add(newName);
+        }
+
+        try {
+          // ★ แก้ไข: เดิมบันทึกทีละสูตรแบบเรียงคิว (for...await) ทำให้ยิ่งมีสูตรในโฟลเดอร์เยอะ
+          // ก็ยิ่งรอนาน เปลี่ยนเป็นยิงบันทึกทุกสูตรพร้อมกันด้วย Promise.all แทน เร็วขึ้นมาก
+          await Promise.all(itemsInGroup.map(({ key, data }) => {
+            data.category = newName;
+            return safeStorage.set(key, JSON.stringify(data));
+          }));
+          // ซิงค์รายการทั้งหมดใหม่เงียบๆ อยู่เบื้องหลัง (เช่น รวมกับโฟลเดอร์ชื่อซ้ำ, อัปเดต dropdown
+          // หมวดหมู่) โดยผู้ใช้ไม่ต้องรอ เพราะหน้าจอโชว์ชื่อใหม่ให้เห็นไปแล้วตั้งแต่ต้น
+          refreshSavedList();
+        } catch(err){
+          console.error('Rename folder error:', err);
+          alert('เปลี่ยนชื่อโฟลเดอร์ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+          // เกิดข้อผิดพลาด: โหลดรายการใหม่ให้ตรงกับฐานข้อมูลจริง (จะกลับไปโชว์ชื่อเดิม)
+          refreshSavedList();
+        }
+      }
+
+      renameBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        enterEditMode();
+      });
+      saveNameBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        commitRename();
+      });
+      cancelNameBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        exitEditMode();
+      });
+      nameInput.addEventListener('click', (e) => e.stopPropagation());
+      nameInput.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if(e.key === 'Enter'){ e.preventDefault(); commitRename(); }
+        else if(e.key === 'Escape'){ e.preventDefault(); exitEditMode(); }
+      });
 
       // กล่องใส่รายชื่อสูตรในหมวดนี้
       const contentContainer = document.createElement('div');
