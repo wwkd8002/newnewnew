@@ -1517,7 +1517,43 @@ async function refreshSavedList(){
       header.className = 'recipe-category-header';
       header.style.cssText = "background: #f4f0ea; padding: 10px 12px; cursor: pointer; font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center; font-family: 'Fraunces', serif; color: var(--ink);";
       const isOpen = openCategories.has(categoryName);
-      header.innerHTML = `<span>📁 ${categoryName} (${groupedRecipes[categoryName].length})</span> <span class="toggle-arrow" style="font-size:11px;">${isOpen ? '▼' : '►'}</span>`;
+      header.innerHTML = `<span>📁 ${categoryName} (${groupedRecipes[categoryName].length})</span>
+        <span style="display:flex; align-items:center; gap:10px;">
+          <button type="button" class="rename-folder-btn" title="แก้ไขชื่อโฟลเดอร์" style="background:none; border:none; cursor:pointer; font-size:14px; padding:2px 4px; line-height:1;">✏️</button>
+          <span class="toggle-arrow" style="font-size:11px;">${isOpen ? '▼' : '►'}</span>
+        </span>`;
+
+      // ★ เพิ่มใหม่: ปุ่มแก้ไขชื่อโฟลเดอร์ (แก้ category ของทุกสูตรในโฟลเดอร์นี้พร้อมกัน)
+      const renameBtn = header.querySelector('.rename-folder-btn');
+      if(renameBtn){
+        renameBtn.addEventListener('click', async (e) => {
+          e.stopPropagation(); // กันไม่ให้กระตุ้นการยุบ/ขยายโฟลเดอร์ไปด้วย
+          const newName = prompt('แก้ไขชื่อโฟลเดอร์:', categoryName);
+          if(newName === null) return; // ผู้ใช้กด Cancel
+          const trimmedName = newName.trim();
+          if(!trimmedName || trimmedName === categoryName) return;
+
+          renameBtn.disabled = true;
+          try {
+            // อัปเดต category ของสูตรทุกอันในโฟลเดอร์นี้ แล้วบันทึกกลับขึ้น cloud ทีละอัน
+            const itemsInGroup = groupedRecipes[categoryName];
+            for(const { key, data } of itemsInGroup){
+              data.category = trimmedName;
+              await safeStorage.set(key, JSON.stringify(data));
+            }
+            // ย้ายสถานะเปิด/ปิดไปผูกกับชื่อใหม่ แล้ววาดรายการใหม่ทั้งหมด
+            if(openCategories.has(categoryName)){
+              openCategories.delete(categoryName);
+              openCategories.add(trimmedName);
+            }
+            await refreshSavedList();
+          } catch(err){
+            console.error('Rename folder error:', err);
+            alert('เปลี่ยนชื่อโฟลเดอร์ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+            renameBtn.disabled = false;
+          }
+        });
+      }
 
       // กล่องใส่รายชื่อสูตรในหมวดนี้
       const contentContainer = document.createElement('div');
