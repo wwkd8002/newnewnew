@@ -686,6 +686,12 @@ function freezeScaleBeforeSugarChange(rowId){
   if(scaleMode==='row' && overrideRowId===rowId){
     scaleMode='pct';
     overrideRowId=null;
+  } else if(scaleMode==='total'){
+    // ถ้ากำลังใช้โหมด "Calculate from a piece count" (คุมน้ำหนักรวมให้คงที่)
+    // การลดน้ำตาลจะทำให้ eff รวมลดลง แล้วสูตรเดิมจะดันวัตถุดิบอื่นขึ้นเพื่อรักษาน้ำหนักรวมเท่าเดิม
+    // จึงต้อง "ล็อก" % สเกลปัจจุบันไว้เป็นโหมด pct แทน เพื่อให้ลดน้ำตาลกระทบแค่น้ำตาล น้ำหนักรวมจะลดลงได้ตามจริง
+    scaleMode='pct';
+    totalTargetGrams=null;
   }
 }
 let totalTargetGrams = null;
