@@ -681,6 +681,13 @@ let scalePct = 100;
 let scaleMode = 'pct';
 let overrideRowId = null;
 let rowOverrides = {};
+
+function freezeScaleBeforeSugarChange(rowId){
+  if(scaleMode==='row' && overrideRowId===rowId){
+    scaleMode='pct';
+    overrideRowId=null;
+  }
+}
 let totalTargetGrams = null;
 let lastTotalOrigGrams = null;
 let recipeOvenTempC = null;
@@ -896,7 +903,7 @@ function renderRows(){
       const btn=document.createElement('button');
       btn.type='button'; btn.className='mini-pill'+(parseFloat(row.sugarReduction)===p?' active':'');
       btn.textContent = p+'%';
-      btn.onclick=()=>{ row.sugarReduction=p; renderRows(); renderResults(); };
+      btn.onclick=()=>{ freezeScaleBeforeSugarChange(row.id); row.sugarReduction=p; renderRows(); renderResults(); };
       sugarSubRow.appendChild(btn);
     });
     const customLabel=document.createElement('span'); customLabel.textContent='Custom:';
@@ -908,7 +915,7 @@ function renderRows(){
     customInput.placeholder='%';
     customInput.oninput=e=>{
       const v=parseFloat(e.target.value);
-      if(!isNaN(v)){ row.sugarReduction=v; renderRows(); renderResults(); }
+      if(!isNaN(v)){ freezeScaleBeforeSugarChange(row.id); row.sugarReduction=v; renderRows(); renderResults(); }
     };
     sugarSubRow.appendChild(customInput);
     card.appendChild(sugarSubRow);
@@ -1102,6 +1109,7 @@ function renderResults(){
           customInput.focus();
         } else {
           customInput.style.display = 'none';
+          freezeScaleBeforeSugarChange(row.id);
           row.sugarReduction = parseFloat(e.target.value);
           renderRows();
           renderResults();
@@ -1110,6 +1118,7 @@ function renderResults(){
       customInput.oninput = (e)=>{
         const v = parseFloat(e.target.value);
         if(!isNaN(v)){
+          freezeScaleBeforeSugarChange(row.id);
           row.sugarReduction = v;
           renderRows();
           renderResults();
