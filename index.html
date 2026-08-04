@@ -440,6 +440,59 @@ box-sizing:border-box;
     background:var(--accent-deep, #8a6d3b);
   }
 
+  /* ===== "Recipes" sidebar nav link + centered popup modal (redesigned browse/search UI) ===== */
+  .recipes-nav-card{ padding:0; background:none; border:none; box-shadow:none; margin-bottom:16px; }
+  .recipes-nav-btn{
+    width:100%; display:flex; align-items:center; gap:10px;
+    background:var(--card); border:1px solid var(--paper-line); border-radius:10px;
+    padding:14px 16px; font-family:var(--sans); font-size:15px; font-weight:700;
+    color:var(--ink); cursor:pointer; box-shadow: 0 2px 8px rgba(54,43,34,0.06);
+    transition: background-color .15s ease, box-shadow .15s ease, transform .15s ease;
+  }
+  .recipes-nav-btn:hover{ background:#f4f0ea; box-shadow:0 3px 10px rgba(54,43,34,0.1); transform: translateY(-1px); }
+  .recipes-nav-btn .recipes-nav-icon{ font-size:17px; }
+  .recipes-nav-btn .recipes-nav-arrow{ margin-left:auto; color:var(--ink-soft); font-size:16px; }
+
+  .recipes-modal-overlay{
+    position:fixed; inset:0; background:rgba(54,43,34,.45); z-index:900;
+    display:none; align-items:flex-start; justify-content:center;
+    padding:60px 16px; overflow-y:auto;
+  }
+  .recipes-modal-overlay.open{ display:flex; }
+  .recipes-modal{
+    background:var(--card); border:1px solid var(--paper-line); border-radius:12px;
+    width:100%; max-width:760px; padding:26px 26px 20px;
+    box-shadow:0 16px 44px rgba(54,43,34,.28); font-family:var(--sans);
+  }
+  .recipes-modal-header{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:4px; }
+  .recipes-modal-header h2{ font-family:'Fraunces', Georgia, serif; font-size:26px; margin:0; letter-spacing:-.01em; font-weight:600; color:var(--ink); }
+  .recipes-modal-close{
+    border:1px solid var(--paper-line); background:#fff; border-radius:50%;
+    width:30px; height:30px; font-size:13px; cursor:pointer; color:var(--ink-soft); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .recipes-modal-close:hover{ background:#f1e0dc; color:var(--rose); }
+  .recipes-result-count{ font-size:12.5px; color:var(--ink-soft); margin-bottom:10px; min-height:16px; }
+  .recipes-table-wrap{ max-height:60vh; overflow-y:auto; border:1px solid var(--paper-line); border-radius:8px; scrollbar-width:thin; scrollbar-color: var(--paper-line) transparent; }
+  .recipes-table-wrap::-webkit-scrollbar{ width:7px; }
+  .recipes-table-wrap::-webkit-scrollbar-thumb{ background-color: var(--paper-line); border-radius:10px; }
+  .recipes-table{ width:100%; border-collapse:collapse; }
+  .recipes-table thead th{
+    position:sticky; top:0; background:var(--card); text-align:left; font-size:10.5px;
+    text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); padding:10px; border-bottom:2px solid var(--ink);
+  }
+  .recipes-table td{ padding:10px; border-bottom:1px solid var(--paper-line); font-size:13.5px; vertical-align:middle; color:var(--ink); }
+  .recipes-table tr:last-child td{ border-bottom:none; }
+  .recipes-table tr:hover td{ background:#f9f6ee; }
+  .recipes-table td.recipe-category-cell{ color:var(--ink-soft); font-size:12.5px; white-space:nowrap; }
+  .recipes-table td.recipe-actions-cell{ white-space:nowrap; text-align:right; }
+  .recipes-table .recipe-match-hint{ font-size:11px; color:var(--ink-soft); margin-top:2px; }
+  @media (max-width:600px){
+    .recipes-modal-overlay{ padding:24px 10px; }
+    .recipes-modal{ padding:20px 16px 16px; }
+    .recipes-table td, .recipes-table th{ padding:8px 6px; font-size:12.5px; }
+  }
+
 @media print{
   /* ★ แก้ไข: เดิมใช้ visibility:hidden ซึ่งซ่อนแค่ "มองไม่เห็น" แต่ยังกินพื้นที่ในหน้าเว็บอยู่เหมือนเดิม
      พอเนื้อหาจริงในหน้าเว็บยาวมาก (sidebar, รายการวัตถุดิบ, ตาราง Results ฯลฯ) พื้นที่ที่ถูกซ่อนไว้
@@ -521,10 +574,15 @@ box-sizing:border-box;
 </header>
 <div class="layout">
 <div class="sidebar">
+<div class="recipes-nav-card">
+  <button type="button" id="openRecipesBtn" class="recipes-nav-btn">
+    <span class="recipes-nav-icon">📁</span>
+    <span>Recipes</span>
+    <span class="recipes-nav-arrow">›</span>
+  </button>
+</div>
 <div class="card saved-card">
-<details>
-<summary>📁 Saved Recipes</summary>
-<div class="card">
+<div class="card" style="margin-bottom:0;">
    <h2>Save recipe</h2>
     <div class="card-note">Save your recipes securely on the cloud.</div>
     
@@ -542,14 +600,38 @@ box-sizing:border-box;
       <button class="btn secondary" id="saveChangesBtn" style="display:none;">💾 Save Changes</button>
     </div>
     <div id="saveStatus" class="status-msg"></div>
+  </div>
+</div>
+</div>
+
+<div id="recipesModalOverlay" class="recipes-modal-overlay">
+  <div class="recipes-modal">
+    <div class="recipes-modal-header">
+      <div>
+        <div class="eyebrow">Saved recipes</div>
+        <h2>Recipes</h2>
+      </div>
+      <button type="button" id="closeRecipesModalBtn" class="recipes-modal-close" aria-label="Close">✕</button>
+    </div>
     <div class="search-wrap">
-      <input id="recipeSearch" class="saved-search" type="text" placeholder="🔍 Search recipe...">
+      <input id="recipeSearch" class="saved-search" type="text" placeholder="🔍 Search recipe or ingredient...">
       <button type="button" id="recipeSearchClearBtn" class="search-clear-btn" aria-label="ล้างคำค้นหา">✕</button>
     </div>
-    <div id="savedList" class="saved-list" style="margin-top:12px;"></div>
+    <div id="recipesResultCount" class="recipes-result-count"></div>
+    <div class="recipes-table-wrap">
+      <table class="recipes-table">
+        <thead>
+          <tr>
+            <th class="check-col"></th>
+            <th>Recipe</th>
+            <th>Category</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="savedList"></tbody>
+      </table>
+    </div>
   </div>
-</details>
-</div>
 </div>
 <div class="main-content">
 
@@ -701,6 +783,30 @@ let editingKey = null;
 let checkedResults = new Set(); // เก็บ id ของวัตถุดิบที่ติ๊กว่าใส่ไปแล้ว (ในตาราง Results after scaling)
 let openCategories = new Set(); // เก็บชื่อหมวดหมู่ที่ผู้ใช้กดขยายไว้ (ค่าเริ่มต้น = ปิดทั้งหมด)
 let currentRecipeTried = false; // ★ เพิ่มใหม่: สถานะ "เคยลองทำแล้ว" ของสูตรที่กำลังเปิดอยู่ ป้องกันไม่ให้ Save Changes ไปเขียนทับค่านี้ทิ้ง
+
+const recipesModalOverlay = document.getElementById('recipesModalOverlay');
+const openRecipesBtn = document.getElementById('openRecipesBtn');
+const closeRecipesModalBtn = document.getElementById('closeRecipesModalBtn');
+if(openRecipesBtn && recipesModalOverlay){
+  openRecipesBtn.addEventListener('click', ()=>{
+    recipesModalOverlay.classList.add('open');
+    refreshSavedList();
+    setTimeout(()=>{ document.getElementById('recipeSearch')?.focus(); }, 50);
+  });
+}
+if(closeRecipesModalBtn && recipesModalOverlay){
+  closeRecipesModalBtn.addEventListener('click', ()=> recipesModalOverlay.classList.remove('open'));
+}
+if(recipesModalOverlay){
+  recipesModalOverlay.addEventListener('click', (e)=>{
+    if(e.target === recipesModalOverlay) recipesModalOverlay.classList.remove('open');
+  });
+}
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape' && recipesModalOverlay && recipesModalOverlay.classList.contains('open')){
+    recipesModalOverlay.classList.remove('open');
+  }
+});
 
 function uid(){ return 'r'+Math.random().toString(36).slice(2,9); }
 function isSugarRow(row){ return SUGAR_CATEGORIES.includes(row.category); }
@@ -1480,649 +1586,193 @@ function currentRecipeData(){
   };
 }
 
+let allSavedRecipes = []; // cache of all saved recipes, used for live search filtering
+
 async function refreshSavedList(){
-  const listEl = document.getElementById('savedList');
+  const listEl = document.getElementById('savedList'); // <tbody> inside the Recipes modal
   if(!listEl) return;
-  listEl.innerHTML = '';
+  listEl.innerHTML = '<tr><td colspan="4" class="status-msg" style="text-align:center;padding:18px 0;">Loading...</td></tr>';
   try{
     const keys = await safeStorage.listPrefix();
     if(keys.length===0){
-      listEl.innerHTML = '<div class="status-msg">No saved recipes yet.</div>';
+      allSavedRecipes = [];
+      listEl.innerHTML = '<tr><td colspan="4" class="status-msg" style="text-align:center;padding:18px 0;">No saved recipes yet.</td></tr>';
+      updateResultCount(0, 0);
       return;
     }
 
-    // 1. ดึงข้อมูลสูตรทั้งหมดมาจัดกลุ่มตาม Category ก่อน
-    const groupedRecipes = {};
-
+    const items = [];
     for(const key of keys){
       let rawVal = await safeStorage.get(key);
       if(!rawVal) continue;
       let data = JSON.parse(rawVal);
       if(!data) continue;
-
-      // ทางแก้ข้อมูลเก่า: ถ้าไม่มีข้อมูลหมวดหมู่ (category) ให้จัดกลุ่มเป็น 'Chocolate cookies' ทันที
+      // ทางแก้ข้อมูลเก่า: ถ้าไม่มีข้อมูลหมวดหมู่ (category) ให้จัดเป็น 'Chocolate cookies' ทันที
       const category = (data.category && data.category.trim()) ? data.category.trim() : 'Chocolate cookies';
-      
-      if(!groupedRecipes[category]){
-        groupedRecipes[category] = [];
-      }
-      groupedRecipes[category].push({ key, data });
+      const label = key.replace(/^recipe:/,'').replace(/-\d+$/,'');
+      items.push({ key, data, category, label });
     }
 
-    // 2. ดึงชื่อหมวดหมู่ทั้งหมดไปอัปเดตใส่ datalist (Dropdown อัตโนมัติเวลาเซฟครั้งถัดไป)
-    const datalist = document.getElementById('categorySuggestions');
-    if(datalist){
-      datalist.innerHTML = '';
-      Object.keys(groupedRecipes).sort().forEach(cat => {
-        datalist.innerHTML += `<option value="${cat}">`;
-      });
-    }
-
-    // 3. วนลูปสร้าง UI แยกกลุ่มตามโฟลเดอร์หมวดหมู่
-    Object.keys(groupedRecipes).sort().forEach(categoryName => {
-      const categoryGroup = document.createElement('div');
-      categoryGroup.className = 'recipe-category-group';
-      categoryGroup.style.marginBottom = '12px';
-      categoryGroup.style.border = '1px solid var(--paper-line)';
-      categoryGroup.style.borderRadius = '6px';
-      categoryGroup.style.overflow = 'hidden';
-
-      // สร้างหัวข้อโฟลเดอร์ (คลิก ยุบ/ขยาย ได้)
-      const header = document.createElement('div');
-      header.className = 'recipe-category-header';
-      header.style.cssText = "background: #f4f0ea; padding: 10px 12px; cursor: pointer; font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center; font-family: 'Fraunces', serif; color: var(--ink);";
-      const isOpen = openCategories.has(categoryName);
-
-      // ใช้ตัวแปรนี้แทน categoryName เดิม เพราะ categoryName เป็น const ของ loop นี้
-      // เปลี่ยนค่าไม่ได้ แต่หลังเปลี่ยนชื่อโฟลเดอร์เราต้องอ้างอิงชื่อใหม่ต่อได้เรื่อยๆ
-      let currentCategoryName = categoryName;
-      // เก็บรายการสูตรของโฟลเดอร์นี้ไว้ตั้งแต่ตอนสร้าง เพื่อไม่ต้องเสียเวลาไปค้นหาใหม่ตอนกดบันทึกชื่อ
-      const itemsInGroup = groupedRecipes[categoryName];
-
-      const leftContainer = document.createElement('span');
-      leftContainer.style.cssText = 'flex:1; min-width:0; display:flex; align-items:center;';
-
-      const nameDisplay = document.createElement('span');
-      nameDisplay.style.cssText = 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap;';
-      nameDisplay.textContent = `📁 ${currentCategoryName} (${itemsInGroup.length})`;
-
-      // ★ เพิ่มใหม่: ช่องพิมพ์แก้ไขชื่อโฟลเดอร์แบบ inline (ซ่อนไว้ก่อน โผล่มาตอนกดปุ่มดินสอ)
-      const nameInput = document.createElement('input');
-      nameInput.type = 'text';
-      nameInput.style.cssText = 'display:none; width:100%; font-family:var(--sans); font-size:14px; font-weight:600; padding:4px 8px; border:1.5px solid var(--accent); border-radius:5px; background:#fff; color:var(--ink);';
-
-      leftContainer.appendChild(nameDisplay);
-      leftContainer.appendChild(nameInput);
-
-      const rightControls = document.createElement('span');
-      rightControls.style.cssText = 'display:flex; align-items:center; gap:8px; flex-shrink:0; margin-left:10px;';
-
-      const renameBtn = document.createElement('button');
-      renameBtn.type = 'button';
-      renameBtn.title = 'แก้ไขชื่อโฟลเดอร์';
-      renameBtn.textContent = '✏️';
-      renameBtn.style.cssText = 'background:none; border:none; cursor:pointer; font-size:14px; padding:2px 4px; line-height:1;';
-
-      const saveNameBtn = document.createElement('button');
-      saveNameBtn.type = 'button';
-      saveNameBtn.title = 'บันทึกชื่อ';
-      saveNameBtn.textContent = '✓';
-      saveNameBtn.style.cssText = 'display:none; background:none; border:none; cursor:pointer; font-size:16px; padding:2px 4px; line-height:1; color:var(--accent-deep); font-weight:700;';
-
-      const cancelNameBtn = document.createElement('button');
-      cancelNameBtn.type = 'button';
-      cancelNameBtn.title = 'ยกเลิก';
-      cancelNameBtn.textContent = '✕';
-      cancelNameBtn.style.cssText = 'display:none; background:none; border:none; cursor:pointer; font-size:13px; padding:2px 4px; line-height:1; color:var(--ink-soft);';
-
-      const arrowSpan = document.createElement('span');
-      arrowSpan.className = 'toggle-arrow';
-      arrowSpan.style.fontSize = '11px';
-      arrowSpan.textContent = isOpen ? '▼' : '►';
-
-      rightControls.appendChild(renameBtn);
-      rightControls.appendChild(saveNameBtn);
-      rightControls.appendChild(cancelNameBtn);
-      rightControls.appendChild(arrowSpan);
-
-      header.appendChild(leftContainer);
-      header.appendChild(rightControls);
-
-      function enterEditMode(){
-        nameInput.value = currentCategoryName;
-        nameDisplay.style.display = 'none';
-        nameInput.style.display = 'block';
-        renameBtn.style.display = 'none';
-        saveNameBtn.style.display = 'inline-block';
-        cancelNameBtn.style.display = 'inline-block';
-        nameInput.focus();
-        nameInput.select();
-      }
-
-      function exitEditMode(){
-        nameDisplay.style.display = 'block';
-        nameInput.style.display = 'none';
-        renameBtn.style.display = 'inline-block';
-        saveNameBtn.style.display = 'none';
-        cancelNameBtn.style.display = 'none';
-      }
-
-      async function commitRename(){
-        const newName = nameInput.value.trim();
-        if(!newName || newName === currentCategoryName){
-          exitEditMode();
-          return;
-        }
-
-        // ★ อัปเดตหน้าจอให้เห็นชื่อใหม่ทันที ไม่ต้องรอ cloud บันทึกเสร็จก่อน (ให้รู้สึกไวขึ้นมาก)
-        const oldName = currentCategoryName;
-        currentCategoryName = newName;
-        nameDisplay.textContent = `📁 ${newName} (${itemsInGroup.length})`;
-        exitEditMode();
-
-        if(openCategories.has(oldName)){
-          openCategories.delete(oldName);
-          openCategories.add(newName);
-        }
-
-        try {
-          // ★ แก้ไข: เดิมบันทึกทีละสูตรแบบเรียงคิว (for...await) ทำให้ยิ่งมีสูตรในโฟลเดอร์เยอะ
-          // ก็ยิ่งรอนาน เปลี่ยนเป็นยิงบันทึกทุกสูตรพร้อมกันด้วย Promise.all แทน เร็วขึ้นมาก
-          await Promise.all(itemsInGroup.map(({ key, data }) => {
-            data.category = newName;
-            return safeStorage.set(key, JSON.stringify(data));
-          }));
-          // ซิงค์รายการทั้งหมดใหม่เงียบๆ อยู่เบื้องหลัง (เช่น รวมกับโฟลเดอร์ชื่อซ้ำ, อัปเดต dropdown
-          // หมวดหมู่) โดยผู้ใช้ไม่ต้องรอ เพราะหน้าจอโชว์ชื่อใหม่ให้เห็นไปแล้วตั้งแต่ต้น
-          refreshSavedList();
-        } catch(err){
-          console.error('Rename folder error:', err);
-          alert('เปลี่ยนชื่อโฟลเดอร์ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
-          // เกิดข้อผิดพลาด: โหลดรายการใหม่ให้ตรงกับฐานข้อมูลจริง (จะกลับไปโชว์ชื่อเดิม)
-          refreshSavedList();
-        }
-      }
-
-      renameBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        enterEditMode();
-      });
-      saveNameBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        commitRename();
-      });
-      cancelNameBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        exitEditMode();
-      });
-      nameInput.addEventListener('click', (e) => e.stopPropagation());
-      nameInput.addEventListener('keydown', (e) => {
-        e.stopPropagation();
-        if(e.key === 'Enter'){ e.preventDefault(); commitRename(); }
-        else if(e.key === 'Escape'){ e.preventDefault(); exitEditMode(); }
-      });
-
-      // กล่องใส่รายชื่อสูตรในหมวดนี้
-      const contentContainer = document.createElement('div');
-      contentContainer.className = 'recipe-category-content';
-      contentContainer.style.background = '#fff';
-      contentContainer.style.display = isOpen ? 'block' : 'none';
-      // ★ แก้ไข: เดิมมี inline style กำหนด max-height:200px ทับ class CSS (.recipe-category-content
-      // ที่กำหนดไว้ 250px) ทำให้ค่าที่ใช้จริงมาจาก 2 ที่ปนกัน และถ้าลืมใส่ inline style ตรงนี้ในโค้ด
-      // จุดอื่นจะได้ค่าไม่เท่ากัน ตอนนี้ลบ inline style ออก ให้ทุกกล่องหมวดหมู่ (ทั้งที่มีอยู่และที่จะ
-      // เพิ่มในอนาคต) ใช้ค่า max-height + overflow-y จาก class เดียวกันเสมอ รับประกันว่าจะมีแท็บเลื่อน
-      // ในกล่องเหมือนกันทุกหมวด เมื่อสูตรในหมวดนั้นๆ มีมากพอที่จะล้นออกจากกรอบ
-
-      // เพิ่มรายชื่อสูตรเข้าไปด้านในกล่อง
-      groupedRecipes[categoryName].forEach(({ key, data }) => {
-        const item = document.createElement('div');
-        item.className = 'saved-item';
-        item.style.borderTop = '1px solid #f4f0ea';
-        const label = key.replace(/^recipe:/,'').replace(/-\d+$/,'');
-
-        // ★ เพิ่มใหม่: ช่องติ๊ก "เคยลองทำสูตรนี้แล้ว" — ติ๊กแล้วบันทึกลง cloud ทันที
-        // (ไม่ต้องกดเปิดสูตรแล้วกด Save Changes) ค่านี้จะถูกจำไว้ตลอด แม้รีเฟรชหน้าหรือเปิดเว็บใหม่
-        const nameLabel = document.createElement('span');
-        nameLabel.textContent = label;
-        if (data.tried) nameLabel.classList.add('tried-label');
-
-        const triedCheckbox = document.createElement('input');
-        triedCheckbox.type = 'checkbox';
-        triedCheckbox.className = 'ing-check';
-        triedCheckbox.checked = !!data.tried;
-        triedCheckbox.title = 'เคยลองทำสูตรนี้แล้ว';
-        triedCheckbox.onchange = async () => {
-          data.tried = triedCheckbox.checked;
-          nameLabel.classList.toggle('tried-label', triedCheckbox.checked);
-          try {
-            await safeStorage.set(key, JSON.stringify(data));
-          } catch(err) {
-            console.error('Failed to save tried status:', err);
-          }
-        };
-
-        const nameRow = document.createElement('div');
-        nameRow.style.display = 'flex';
-        nameRow.style.alignItems = 'center';
-        nameRow.style.gap = '8px';
-        nameRow.appendChild(triedCheckbox);
-        nameRow.appendChild(nameLabel);
-
-        // ★ เพิ่มใหม่: ห่อ nameRow ไว้ในกล่องเดียวกับคำใบ้ที่จะโชว์ตอนค้นเจอจากชื่อวัตถุดิบ
-        // (แยกจาก nameRow เพื่อไม่ให้ innerText ปนกับข้อความคำใบ้ตอนค้นหาครั้งถัดไป)
-        const infoBlock = document.createElement('div');
-        infoBlock.appendChild(nameRow);
-
-        item.appendChild(infoBlock);
-        item.dataset.recipeName = label.toLowerCase();
-        item.dataset.category = categoryName;
-
-        // เก็บชื่อวัตถุดิบทั้งหมดของสูตรนี้ไว้เป็น data attribute เพื่อให้ช่องค้นหา
-        // ด้านล่าง (filterSavedRecipes) สามารถค้นจากชื่อวัตถุดิบได้ด้วย ไม่ใช่แค่ชื่อสูตรอย่างเดียว
-        item.dataset.ingredients = (data.ingredients || [])
-          .map(ing => (ing && ing.name ? ing.name.toLowerCase() : ''))
-          .join(' | ');
-
-        // ★ เพิ่มใหม่: เก็บลิงก์เว็บไซต์ต้นฉบับของสูตรไว้เป็น data attribute ด้วย
-        // เพื่อให้ช่องค้นหาด้านล่าง (filterSavedRecipes) ค้นเจอจากคำที่อยู่ในลิงก์ได้เช่นกัน
-        item.dataset.recipeUrl = (data.recipeUrl || '').toLowerCase();
-        
-        const actions = document.createElement('div');
-        actions.className = 'saved-actions';
-
-        const loadBtn = document.createElement('button');
-        loadBtn.className = 'btn secondary small'; loadBtn.textContent = 'Open';
-        loadBtn.onclick = () => {
-          editingKey = key;
-          checkedResults.clear();
-          currentRecipeTried = !!data.tried;
-          document.getElementById('saveChangesBtn').style.display = 'inline-block';
-          document.getElementById('recipeNameInput').value = label;
-          
-          // ดึงค่าหมวดหมู่มาแสดงในช่องกรอกตอนเปิดดูด้วย
-          if(document.getElementById('recipeCategory')) {
-            document.getElementById('recipeCategory').value = data.category || 'Chocolate cookies';
-          }
-
-          ingredients = (data.ingredients || []).map(ing => Object.assign({id:uid()}, ing));
-          if(document.getElementById('recipeUrl')) document.getElementById('recipeUrl').value = data.recipeUrl || '';
-          if(data.recipeUrl){ showRecipeUrlAsLink(data.recipeUrl); } else { showRecipeUrlAsInput(); }
-          document.getElementById('pasteBox').value = data.pasteText || '';
-          document.getElementById('notesBox').value = data.notes || '';
-          recipeOvenTempC = (typeof data.ovenTempC === 'number') ? data.ovenTempC : null;
-          scaleMode = 'pct'; scalePct = 100; overrideRowId = null;
-          renderRows(); renderResults();
-          document.getElementById('saveStatus').textContent = `Opened recipe "${label}".`;
-          document.getElementById('saveStatus').className = 'status-msg ok';
-          requestAnimationFrame(autoResizeAllTextareas);
-        };
-
-        const delBtn = document.createElement('button');
-        delBtn.className = 'btn danger small'; delBtn.textContent = 'Delete';
-        delBtn.onclick = async () => {
-          if(confirm(`Are you sure you want to delete "${label}"?`)) {
-            await safeStorage.delete(key);
-            refreshSavedList();
-          }
-        };
-
-        actions.appendChild(loadBtn); actions.appendChild(delBtn);
-        item.appendChild(actions);
-        contentContainer.appendChild(item);
-      });
-
-      // ใส่ฟังก์ชันคลิกเพื่อ ยุบ-ขยาย กลุ่ม
-      header.addEventListener('click', () => {
-        if(contentContainer.style.display === 'none'){
-          contentContainer.style.display = 'block';
-          header.querySelector('.toggle-arrow').innerText = '▼';
-          openCategories.add(categoryName);
-        } else {
-          contentContainer.style.display = 'none';
-          header.querySelector('.toggle-arrow').innerText = '►';
-          openCategories.delete(categoryName);
-        }
-      });
-
-      categoryGroup.appendChild(header);
-      categoryGroup.appendChild(contentContainer);
-      listEl.appendChild(categoryGroup);
+    // เรียงสูตรที่เซฟล่าสุดขึ้นก่อน
+    items.sort((a,b)=>{
+      const ta = a.data.savedAt ? new Date(a.data.savedAt).getTime() : 0;
+      const tb = b.data.savedAt ? new Date(b.data.savedAt).getTime() : 0;
+      return tb - ta;
     });
 
+    allSavedRecipes = items;
+
+    // อัปเดต dropdown แนะนำหมวดหมู่ (Category) จากรายการสูตรทั้งหมด
+    const datalist = document.getElementById('categorySuggestions');
+    if(datalist){
+      const cats = [...new Set(items.map(i=>i.category))].sort();
+      datalist.innerHTML = cats.map(c=>`<option value="${c}">`).join('');
+    }
+
+    filterSavedRecipes();
   }catch(err){
     console.error('refreshSavedList error:', err);
-    listEl.innerHTML = '<div class="status-msg err">Unable to load list. (' + (err && err.message ? err.message : err) + ')</div>';
+    listEl.innerHTML = '<tr><td colspan="4" class="status-msg err">Unable to load list. (' + (err && err.message ? err.message : err) + ')</td></tr>';
   }
 }
 
-document.getElementById('saveBtn').addEventListener('click', async ()=>{
-  const nameInput = document.getElementById('recipeNameInput');
-  const name = nameInput.value.trim();
-  const statusEl = document.getElementById('saveStatus');
-  if(!name){ statusEl.textContent='Name the recipe first.'; statusEl.className='status-msg err'; return; }
-  if(ingredients.length===0){ statusEl.textContent='No ingredients to save yet.'; statusEl.className='status-msg err'; return; }
+function updateResultCount(shown, total){
+  const el = document.getElementById('recipesResultCount');
+  if(!el) return;
+  if(total === 0){ el.textContent = ''; return; }
+  el.textContent = (shown === total)
+    ? `${total} ${total===1 ? 'recipe' : 'recipes'}`
+    : `${shown} of ${total} recipes`;
+}
 
-  try{
-    const key = `recipe:${name}-${Date.now()}`;
-    currentRecipeTried = false; // ★ สูตรใหม่ที่เพิ่งเซฟ ให้เริ่มต้นเป็น "ยังไม่เคยทำ" เสมอ
-    await safeStorage.set(key, JSON.stringify(currentRecipeData()));
-    statusEl.textContent = `Saved "${name}".`;
-    statusEl.className='status-msg ok';
-    nameInput.value='';
-    
-    // เพิ่มบรรทัดนี้เพื่อล้างช่อง Category หลังจากกดเซฟเสร็จแล้ว
-    if(document.getElementById('recipeCategory')) document.getElementById('recipeCategory').value = '';
+function renderRecipeRows(items){
+  const listEl = document.getElementById('savedList');
+  if(!listEl) return;
+  listEl.innerHTML = '';
 
-    // ★ แก้ไข: หลังเซฟสูตรใหม่เสร็จ ให้ถือว่ากำลัง "เปิดดู/แก้ไข" สูตรนี้อยู่ทันที
-    // (เหมือนกับตอนกด Open) เพื่อให้แก้ไขต่อแล้วกด "Save Changes" ได้เลย
-    // โดยไม่ต้องรีเฟรชหน้าแล้วไปกดหาสูตร > Open ใหม่
-    editingKey = key;
-    document.getElementById('saveChangesBtn').style.display = 'inline-block';
-
-    refreshSavedList();
-  }catch(err){
-    statusEl.textContent = 'Save failed.';
-    statusEl.className='status-msg err';
+  if(items.length === 0){
+    listEl.innerHTML = '<tr><td colspan="4" class="status-msg" style="text-align:center;padding:18px 0;">ไม่พบสูตรหรือวัตถุดิบที่ตรงกับคำค้นหาค่ะ</td></tr>';
+    return;
   }
-});
 
-document.getElementById('saveChangesBtn').addEventListener('click', async ()=>{
- if(!editingKey) return;
- const statusEl=document.getElementById('saveStatus');
- try{
-   await safeStorage.set(editingKey, JSON.stringify(currentRecipeData()));
-   statusEl.textContent='Changes saved.';
-   statusEl.className='status-msg ok';
-   refreshSavedList();
- }catch(err){
-   statusEl.textContent='Update failed.';
-   statusEl.className='status-msg err';
- }
-});
+  items.forEach(({key, data, category, label, matchHint})=>{
+    const tr = document.createElement('tr');
 
-document.getElementById('addRowBtn').addEventListener('click', function() {
-    addRow();
-});
+    // ★ ช่องติ๊ก "เคยลองทำสูตรนี้แล้ว" — ติ๊กแล้วบันทึกลง cloud ทันที
+    const tdCheck = document.createElement('td');
+    tdCheck.className = 'check-col';
+    const triedCheckbox = document.createElement('input');
+    triedCheckbox.type = 'checkbox';
+    triedCheckbox.className = 'ing-check';
+    triedCheckbox.checked = !!data.tried;
+    triedCheckbox.title = 'เคยลองทำสูตรนี้แล้ว';
+    triedCheckbox.onchange = async () => {
+      data.tried = triedCheckbox.checked;
+      nameCell.classList.toggle('tried-label', triedCheckbox.checked);
+      try{ await safeStorage.set(key, JSON.stringify(data)); }
+      catch(err){ console.error('Failed to save tried status:', err); }
+    };
+    tdCheck.appendChild(triedCheckbox);
 
-document.getElementById("clearBtn").addEventListener("click",function(){
-  if(document.getElementById("recipeUrl")) document.getElementById("recipeUrl").value="";
-  showRecipeUrlAsInput();
-  document.getElementById("pasteBox").value="";
-  document.getElementById("notesBox").value="";
-  document.getElementById("extractStatus").textContent="";
-  recipeOvenTempC=null;
-  editingKey=null;
-  currentRecipeTried=false;
-  document.getElementById('saveChangesBtn').style.display='none';
-  ingredients=[];
-  overrideRowId=null;
-  rowOverrides={};
-  totalTargetGrams=null;
-  scalePct=100;
-  scaleMode="pct";
-  checkedResults.clear();
-  renderRows();
-  renderResults();
-  renderPills();
-  requestAnimationFrame(autoResizeAllTextareas);
-});
-
-function showRecipeUrlAsLink(url){
-  const input = document.getElementById('recipeUrl');
-  const view = document.getElementById('recipeUrlView');
-  const link = document.getElementById('recipeUrlLink');
-  if(!input || !view || !link) return;
-  input.style.display = 'none';
-  view.style.display = 'flex';
-  link.href = url;
-  link.textContent = url;
-}
-function showRecipeUrlAsInput(){
-  const input = document.getElementById('recipeUrl');
-  const view = document.getElementById('recipeUrlView');
-  if(!input || !view) return;
-  input.style.display = '';
-  view.style.display = 'none';
-}
-const editRecipeUrlBtnEl = document.getElementById('editRecipeUrlBtn');
-if(editRecipeUrlBtnEl){
-  editRecipeUrlBtnEl.onclick = () => {
-    showRecipeUrlAsInput();
-    document.getElementById('recipeUrl').focus();
-  };
-}
-
-// ★ แก้ไข: เดิม autoResizeTextarea() จะ "ยุบกล่องให้เหลือ height:auto ก่อน แล้วค่อยวัดใหม่แล้วขยายกลับ"
-// ทุกครั้งที่พิมพ์ 1 ตัวอักษร ทำให้ความสูงทั้งหน้าเว็บยุบฮวบแล้วเด้งกลับซ้ำๆ ถ้าข้อความสั้นแทบไม่เห็นผล
-// แต่ถ้าข้อความยาวมาก การยุบ-เด้งแต่ละรอบจะมีขนาดใหญ่ขึ้นเห็นชัด ทำให้แถบเลื่อน (scrollbar) กระตุกตามที่เจอ
-// แก้โดยใช้ "กล่องเงา" (mirror) ที่มองไม่เห็น ซ่อนอยู่นอกจอ มาวัดความสูงที่ต้องการแทน โดยไม่ไปยุบกล่องจริง
-// ที่กำลังโฟกัส/พิมพ์อยู่เลย ทำให้ไม่มีการยุบ-เด้งเกิดขึ้นกับกล่องที่มองเห็นอีกต่อไป
-let __resizeMirror = null;
-function getResizeMirror(){
-    if(__resizeMirror) return __resizeMirror;
-    const mirror = document.createElement('textarea');
-    mirror.setAttribute('tabindex','-1');
-    mirror.setAttribute('aria-hidden','true');
-    mirror.style.position = 'absolute';
-    mirror.style.visibility = 'hidden';
-    mirror.style.top = '0';
-    mirror.style.left = '-9999px';
-    mirror.style.height = 'auto';
-    mirror.style.overflow = 'hidden';
-    mirror.style.whiteSpace = 'pre-wrap';
-    mirror.style.wordWrap = 'break-word';
-    document.body.appendChild(mirror);
-    __resizeMirror = mirror;
-    return mirror;
-}
-
-function autoResizeTextarea(el){
-    if(!el) return;
-    el.style.overflowY='hidden';
-    el.style.resize='none';
-    const mirror = getResizeMirror();
-    const cs = window.getComputedStyle(el);
-    mirror.style.width = cs.width;
-    mirror.style.font = cs.font;
-    mirror.style.lineHeight = cs.lineHeight;
-    mirror.style.padding = cs.padding;
-    mirror.style.border = cs.border;
-    mirror.style.boxSizing = cs.boxSizing;
-    mirror.value = el.value;
-    const needed = mirror.scrollHeight;
-    if (parseInt(el.style.height, 10) !== needed) {
-        el.style.height = needed + 'px';
+    const tdName = document.createElement('td');
+    const nameCell = document.createElement('div');
+    nameCell.textContent = label;
+    if(data.tried) nameCell.classList.add('tried-label');
+    tdName.appendChild(nameCell);
+    if(matchHint){
+      const hintEl = document.createElement('div');
+      hintEl.className = 'recipe-match-hint';
+      hintEl.textContent = matchHint;
+      tdName.appendChild(hintEl);
     }
-}
 
-function autoResizeAllTextareas(){
-    document.querySelectorAll('textarea').forEach(autoResizeTextarea);
-}
+    const tdCategory = document.createElement('td');
+    tdCategory.className = 'recipe-category-cell';
+    tdCategory.textContent = `📁 ${category}`;
 
-window.addEventListener('load', ()=>{
-    requestAnimationFrame(autoResizeAllTextareas);
-});
+    const tdActions = document.createElement('td');
+    tdActions.className = 'recipe-actions-cell';
 
-document.addEventListener('input', (e)=>{
-    if(e.target && e.target.tagName==='TEXTAREA'){
-        autoResizeTextarea(e.target);
-    }
-});
+    const loadBtn = document.createElement('button');
+    loadBtn.type = 'button';
+    loadBtn.className = 'btn secondary small'; loadBtn.textContent = 'Open';
+    loadBtn.style.marginRight = '6px';
+    loadBtn.onclick = () => {
+      editingKey = key;
+      checkedResults.clear();
+      currentRecipeTried = !!data.tried;
+      document.getElementById('saveChangesBtn').style.display = 'inline-block';
+      document.getElementById('recipeNameInput').value = label;
 
-function addCategoryHint(cloneItem, categoryName){
-  if(!categoryName) return;
-  let catEl = cloneItem.querySelector('.category-match-hint');
-  if (!catEl) {
-    catEl = document.createElement('div');
-    catEl.className = 'category-match-hint';
-    catEl.style.cssText = 'font-size:11px; color:var(--gold); margin-top:2px; font-weight:600;';
-    cloneItem.firstElementChild.appendChild(catEl);
-  }
-  catEl.textContent = `📁 หมวดหมู่: ${categoryName}`;
-  catEl.style.display = 'block';
+      if(document.getElementById('recipeCategory')) {
+        document.getElementById('recipeCategory').value = data.category || 'Chocolate cookies';
+      }
+
+      ingredients = (data.ingredients || []).map(ing => Object.assign({id:uid()}, ing));
+      if(document.getElementById('recipeUrl')) document.getElementById('recipeUrl').value = data.recipeUrl || '';
+      if(data.recipeUrl){ showRecipeUrlAsLink(data.recipeUrl); } else { showRecipeUrlAsInput(); }
+      document.getElementById('pasteBox').value = data.pasteText || '';
+      document.getElementById('notesBox').value = data.notes || '';
+      recipeOvenTempC = (typeof data.ovenTempC === 'number') ? data.ovenTempC : null;
+      scaleMode = 'pct'; scalePct = 100; overrideRowId = null;
+      renderRows(); renderResults();
+      document.getElementById('saveStatus').textContent = `Opened recipe "${label}".`;
+      document.getElementById('saveStatus').className = 'status-msg ok';
+      requestAnimationFrame(autoResizeAllTextareas);
+      if(recipesModalOverlay) recipesModalOverlay.classList.remove('open');
+    };
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn danger small'; delBtn.textContent = 'Delete';
+    delBtn.onclick = async () => {
+      if(confirm(`Are you sure you want to delete "${label}"?`)) {
+        await safeStorage.delete(key);
+        refreshSavedList();
+      }
+    };
+
+    tdActions.appendChild(loadBtn);
+    tdActions.appendChild(delBtn);
+
+    tr.appendChild(tdCheck);
+    tr.appendChild(tdName);
+    tr.appendChild(tdCategory);
+    tr.appendChild(tdActions);
+    listEl.appendChild(tr);
+  });
 }
 
 function filterSavedRecipes(){
   const q = (document.getElementById('recipeSearch')?.value || '').toLowerCase().trim();
-  const listEl = document.getElementById('savedList');
-  if(!listEl) return;
 
-  // 1. ถ้าช่องค้นหาว่างเปล่า ให้คืนค่ากลับมาแสดงตามหมวดหมู่ (Folders) แบบเดิม
-  if (q === '') {
-    // ซ่อนกล่องค้นหาแบบแยก (ถ้ามี)
-    const searchResultsBox = document.getElementById('searchResultsGroup');
-    if(searchResultsBox) searchResultsBox.style.display = 'none';
-
-    // แสดงหมวดหมู่โฟลเดอร์ปกติทั้งหมด
-    document.querySelectorAll('#savedList .recipe-category-group').forEach(group => {
-      group.style.display = 'block';
-      const content = group.querySelector('.recipe-category-content');
-      const arrow = group.querySelector('.toggle-arrow');
-      const catName = group.querySelector('.recipe-category-header span')?.textContent?.replace(/^📁\s*/, '').replace(/\s*\(\d+\)\s*$/, '');
-      const shouldBeOpen = catName ? openCategories.has(catName) : false;
-      if(content) content.style.display = shouldBeOpen ? 'block' : 'none';
-      if(arrow) arrow.innerText = shouldBeOpen ? '▼' : '►';
-      
-      // คืนค่ารายการข้างในให้แสดงปกติ
-      group.querySelectorAll('.saved-item').forEach(item => {
-        item.style.display = 'flex';
-        const hintEl = item.querySelector('.ingredient-match-hint');
-        if(hintEl) hintEl.style.display = 'none';
-      });
-    });
+  if(q === ''){
+    renderRecipeRows(allSavedRecipes);
+    updateResultCount(allSavedRecipes.length, allSavedRecipes.length);
     return;
   }
 
-  // 2. ซ่อนหมวดหมู่โฟลเดอร์ปกติชั่วคราวขณะกำลังค้นหา
-  document.querySelectorAll('#savedList .recipe-category-group').forEach(group => {
-    group.style.display = 'none';
-  });
+  const filtered = [];
+  allSavedRecipes.forEach(item => {
+    const nameMatches = item.label.toLowerCase().includes(q);
+    const categoryMatches = item.category.toLowerCase().includes(q);
+    const ingredientNames = (item.data.ingredients || []).map(ing => ing && ing.name ? ing.name.toLowerCase() : '');
+    const matchedIngredient = ingredientNames.find(n => n.includes(q));
+    const urlMatches = (item.data.recipeUrl || '').toLowerCase().includes(q);
 
-  // 3. เตรียมหรือสร้างกล่องแสดงผลค้นหาแบบแยก 2 กล่อง
-  let searchGroup = document.getElementById('searchResultsGroup');
-  if (!searchGroup) {
-    searchGroup = document.createElement('div');
-    searchGroup.id = 'searchResultsGroup';
-    listEl.appendChild(searchGroup);
-  }
-  searchGroup.style.display = 'block';
-  searchGroup.innerHTML = ''; // ล้างผลลัพธ์เก่า
-
-  // สร้างกล่องใส่ผลลัพธ์: ชื่อสูตร
-  const nameBox = document.createElement('div');
-  nameBox.style.cssText = 'margin-bottom:14px; border:1px solid var(--paper-line); border-radius:6px; background:#fff; padding:8px;';
-  nameBox.innerHTML = '<div style="font-weight:700; font-size:12px; color:var(--accent-deep); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">📖 ค้นเจอจาก "ชื่อสูตร"</div><div class="name-results-content" style="display:flex; flex-direction:column; gap:6px;"></div>';
-
-  // สร้างกล่องใส่ผลลัพธ์: วัตถุดิบ
-  const ingBox = document.createElement('div');
-  ingBox.style.cssText = 'margin-bottom:14px; border:1px solid var(--paper-line); border-radius:6px; background:#fff; padding:8px;';
-  ingBox.innerHTML = '<div style="font-weight:700; font-size:12px; color:var(--gold); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">🥗 ค้นเจอจาก "ชื่อวัตถุดิบ"</div><div class="ing-results-content" style="display:flex; flex-direction:column; gap:6px;"></div>';
-
-  // ★ เพิ่มใหม่: สร้างกล่องใส่ผลลัพธ์: ลิงก์เว็บไซต์ต้นฉบับ
-  const urlBox = document.createElement('div');
-  urlBox.style.cssText = 'margin-bottom:14px; border:1px solid var(--paper-line); border-radius:6px; background:#fff; padding:8px;';
-  urlBox.innerHTML = '<div style="font-weight:700; font-size:12px; color:var(--accent-deep); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">🔗 ค้นเจอจาก "ลิงก์เว็บไซต์"</div><div class="url-results-content" style="display:flex; flex-direction:column; gap:6px;"></div>';
-
-  const nameContent = nameBox.querySelector('.name-results-content');
-  const ingContent = ingBox.querySelector('.ing-results-content');
-  const urlContent = urlBox.querySelector('.url-results-content');
-
-  let nameMatchCount = 0;
-  let ingMatchCount = 0;
-  let urlMatchCount = 0;
-
-  // 4. วนลูปตรวจเช็คสูตรอาหารทั้งหมด
-  document.querySelectorAll('#savedList .saved-item').forEach(item => {
-    const nameText = item.dataset.recipeName || '';
-    const ingredientsText = item.dataset.ingredients || '';
-    const urlText = item.dataset.recipeUrl || '';
-
-    const nameMatches = nameText.includes(q);
-    const ingredientMatches = ingredientsText.includes(q);
-    const urlMatches = urlText.includes(q);
-
-    // ฟังก์ชันช่วยคัดลอก Node รายการมาใส่ในกล่องค้นหา พร้อมผูก Event ปุ่ม Open/Delete/checkbox
-    // ให้ใช้งานได้ปกติ (แยกออกมาเพื่อเรียกซ้ำได้หลายครั้ง เผื่อสูตรเดียวเข้าเงื่อนไขมากกว่า 1 กล่อง
-    // เช่น ชื่อสูตรตรงกับคำค้นหา และลิงก์เว็บไซต์ก็มีคำนั้นด้วย)
-    function makeCloneItem(){
-      const cloneItem = item.cloneNode(true);
-      cloneItem.style.display = 'flex';
-
-      const origOpenBtn = item.querySelector('.saved-actions .btn.secondary');
-      const cloneOpenBtn = cloneItem.querySelector('.saved-actions .btn.secondary');
-      if(origOpenBtn && cloneOpenBtn) cloneOpenBtn.onclick = origOpenBtn.onclick;
-
-      const origDelBtn = item.querySelector('.saved-actions .btn.danger');
-      const cloneDelBtn = cloneItem.querySelector('.saved-actions .btn.danger');
-      if(origDelBtn && cloneDelBtn) cloneDelBtn.onclick = origDelBtn.onclick;
-
-      const origCheckbox = item.querySelector('input[type="checkbox"]');
-      const cloneCheckbox = cloneItem.querySelector('input[type="checkbox"]');
-      if(origCheckbox && cloneCheckbox) {
-        cloneCheckbox.onchange = (e) => {
-          origCheckbox.checked = e.target.checked;
-          origCheckbox.dispatchEvent(new Event('change'));
-        };
+    if(nameMatches || categoryMatches || matchedIngredient || urlMatches){
+      let matchHint = null;
+      if(!nameMatches && !categoryMatches && matchedIngredient){
+        matchHint = `🔎 มีวัตถุดิบ: ${matchedIngredient}`;
+      } else if(!nameMatches && !categoryMatches && urlMatches){
+        matchHint = `🔎 มีในลิงก์: ${item.data.recipeUrl}`;
       }
-      return cloneItem;
-    }
-
-    // ★ แก้ไข: เดิมใช้ if/else if ทำให้เช็คแค่เงื่อนไขแรกที่ตรงแล้วหยุด (พอชื่อสูตรตรงกับคำค้นหา
-    // จะไม่เช็คลิงก์เว็บไซต์ต่อเลย) เปลี่ยนเป็นเช็คทีละเงื่อนไขแยกจากกัน สูตรเดียวจึงไปโผล่ได้
-    // มากกว่า 1 กล่องผลลัพธ์ ถ้าเข้าเงื่อนไขมากกว่าหนึ่งอย่าง
-    if (nameMatches) {
-      const cloneItem = makeCloneItem();
-      addCategoryHint(cloneItem, item.dataset.category);
-      nameContent.appendChild(cloneItem);
-      nameMatchCount++;
-    }
-
-    if (ingredientMatches) {
-      const cloneItem = makeCloneItem();
-      // แสดงคำใบ้วัตถุดิบที่เจอ
-      let hintEl = cloneItem.querySelector('.ingredient-match-hint');
-      if (!hintEl) {
-        hintEl = document.createElement('div');
-        hintEl.className = 'ingredient-match-hint';
-        hintEl.style.cssText = 'font-size:11px; color:var(--ink-soft); margin-top:2px;';
-        cloneItem.firstElementChild.appendChild(hintEl);
-      }
-      const matchedIngredient = ingredientsText.split(' | ').find(n => n.includes(q)) || q;
-      hintEl.textContent = `🔎 มีวัตถุดิบ: ${matchedIngredient}`;
-      hintEl.style.display = 'block';
-
-      addCategoryHint(cloneItem, item.dataset.category);
-      ingContent.appendChild(cloneItem);
-      ingMatchCount++;
-    }
-
-    if (urlMatches) {
-      const cloneItem = makeCloneItem();
-      // ★ เพิ่มใหม่: แสดงคำใบ้ลิงก์เว็บไซต์ที่เจอคำค้นหา
-      let hintEl = cloneItem.querySelector('.ingredient-match-hint');
-      if (!hintEl) {
-        hintEl = document.createElement('div');
-        hintEl.className = 'ingredient-match-hint';
-        hintEl.style.cssText = 'font-size:11px; color:var(--ink-soft); margin-top:2px; word-break:break-all;';
-        cloneItem.firstElementChild.appendChild(hintEl);
-      }
-      hintEl.textContent = `🔎 มีในลิงก์: ${urlText}`;
-      hintEl.style.display = 'block';
-
-      addCategoryHint(cloneItem, item.dataset.category);
-      urlContent.appendChild(cloneItem);
-      urlMatchCount++;
+      filtered.push(Object.assign({}, item, {matchHint}));
     }
   });
 
-  // 5. นำกล่องที่มีผลลัพธ์ไปแปะแสดงบนหน้าจอ
-  if (nameMatchCount > 0) searchGroup.appendChild(nameBox);
-  if (ingMatchCount > 0) searchGroup.appendChild(ingBox);
-  if (urlMatchCount > 0) searchGroup.appendChild(urlBox);
-
-  if (nameMatchCount === 0 && ingMatchCount === 0 && urlMatchCount === 0) {
-    searchGroup.innerHTML = '<div class="status-msg" style="text-align:center; padding:12px 0;">ไม่พบสูตรหรือวัตถุดิบที่ตรงกับคำค้นหาค่ะ</div>';
-  }
+  renderRecipeRows(filtered);
+  updateResultCount(filtered.length, allSavedRecipes.length);
 }
 
 function updateSearchClearBtnVisibility(){
