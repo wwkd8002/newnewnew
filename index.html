@@ -1357,6 +1357,19 @@ document.getElementById('extractBtn').addEventListener('click', function(){
     let cleanLine = line.trim().replace(/^[\u25A0-\u25FF\*\-\+\s•▢]+/g, '').trim();
     if(!cleanLine) return;
 
+    // ★ แก้ไข: เดิม regex หลักคาดหวังว่าตัวเลขต้องขึ้นต้นบรรทัดเสมอ (เช่น "2 large eggs" หรือ "2egg" ถึงจะดึงจำนวนถูก)
+    // แต่ถ้าพิมพ์คำว่า "egg/eggs" ขึ้นก่อนแล้วตามด้วยตัวเลข เช่น "egg 2 large" หรือ "eggs 2"
+    // (รวมถึง "egg yolk 2" / "egg white 3") regex เดิมจะจับตัวเลขไม่ได้เลย แล้ว fallback ไป default จำนวน = 1 ผิดๆ
+    // ตรงนี้จึงสลับลำดับให้เป็นรูปแบบมาตรฐาน "จำนวน [ขนาด] egg [yolk/white]" ก่อน แล้วค่อยส่งเข้ากระบวนการแยกวิเคราะห์เดิม
+    // ทำงานกับคำว่า egg/eggs ไม่ว่าจะมี s ต่อท้ายหรือไม่ก็ได้ทั้งคู่
+    cleanLine = cleanLine.replace(/^(eggs?|ไข่|ฟอง)\s+(yolks?|whites?)?\s*([\d\/\.]+)\s*(small|medium|large|extra\s*large|xl)?\s*(.*)$/i,
+      (m, _eggWord, yolkWhite, amtPart, sizePart, restPart) => {
+        const size = sizePart ? sizePart.trim() + ' ' : '';
+        const yw = yolkWhite ? ' ' + yolkWhite.trim() : '';
+        const rest = restPart && restPart.trim() ? ' ' + restPart.trim() : '';
+        return `${amtPart} ${size}egg${yw}${rest}`.trim();
+      });
+
     // Compound Regex รองรับเครื่องหมาย + หรือคำเชื่อมได้ครบถ้วน
     const compoundRegex = /^([\d\/\.\s]+)\s*(cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา)\s*(?:plus|\+|and|และ)\s*([\d\/\.\s]+)\s*(cups?|cup|ถ้วย|tablespoons?|tbsp\.?|ช้อนโต๊ะ|teaspoons?|tsp\.?|ช้อนชา)\s*(.*)$/i;
     const compoundMatch = cleanLine.match(compoundRegex);
@@ -1480,7 +1493,11 @@ document.getElementById('extractBtn').addEventListener('click', function(){
 
         const eggText=(name||'').toLowerCase();
 
-        if(/\begg/.test(eggText)){
+        // ★ แก้ไข: เดิมเช็คแค่ /\begg/.test(eggText) คือดูจากชื่อวัตถุดิบเท่านั้น
+        // แต่กรณีที่หน่วย (unit) ถูกดึงมาเป็น 'egg' ถูกต้องแล้วตั้งแต่ต้น (เช่น "2 eggs" ที่ไม่มีข้อความอื่นต่อท้าย)
+        // ชื่อวัตถุดิบ (name) จะว่างเปล่า ทำให้เงื่อนไขเดิมไม่ทำงานและ name ค้างเป็นค่าว่าง
+        // เพิ่มเงื่อนไข finalUnit==='egg' เข้าไปด้วย เพื่อให้ตั้งชื่อเป็น "Egg" ในทุกกรณีที่หน่วยเป็นไข่
+        if(finalUnit==='egg' || /\begg/.test(eggText)){
             finalUnit='egg';
 
             name=name.replace(/,?\s*at room temperature/ig,'')
